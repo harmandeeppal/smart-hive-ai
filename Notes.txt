@@ -1,0 +1,9 @@
+Before you proceed for the Final Deployment.
+
+I have a few questions and issues that I would like to discuss.
+1. The toggle button is there, but I cannot determine if it is on or off from the front end, nor does it seems to actually turn off any of the features that are running.
+2. Live camera feed is displaying nothing at the moment (I would like to test this live before we move it for the final deployment).
+3. The live feed is for queen bee detection, i would like to check if it is actually detecting queen be and taking a photo and uploading it on the AWS. (Note: it also needs to create a frame around the queen bee and show the accuracy what it is detecting the queen bee. This feature should actually work and detect queen bee from a bunch of bees, if I show a photo of number of bees or real bee hive with bees.
+4. With each of the dashboard feture that we have build (temp, humidity, sound, etc), based on the research that we have done, any anomalies in the bee hive should be 
+5. My sensors are from Sun Founder Raspberry Pi Sensor Kit. Will they be okay on the code that we have here in the project?
+6 Do my hardware sensor needs to be in specific pins on the breadboard / or do i have to mention anything about the hardware connectivity in my code?

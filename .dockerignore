@@ -1,0 +1,14 @@
+# Ignore files and folders specified in .gitignore
+# This is a common pattern to avoid duplicating lists.
+# Add any Docker-specific ignores below this.
+.git
+.gitignore
+.dockerignore
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+.env

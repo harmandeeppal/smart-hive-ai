@@ -1,0 +1,7 @@
+(base) PS C:\Users\harma\OneDrive - AUT University\IDE_Workspace\aut_projects\smart-hive-ai> python -m venv venv
+(base) PS C:\Users\harma\OneDrive - AUT University\IDE_Workspace\aut_projects\smart-hive-ai> .\venv\Scripts\activate
+(venv) (base) PS C:\Users\harma\OneDrive - AUT University\IDE_Workspace\aut_projects\smart-hive-ai> pip install paho-mqtt
+
+
+cd "C:\Users\harma\OneDrive - AUT University\IDE_Workspace\aut_projects\yolov5"
+.\yolov5_py310\Scripts\activate

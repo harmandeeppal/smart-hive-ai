@@ -1,0 +1,41 @@
+# docker-compose.yml (Corrected and Enhanced)
+
+services:
+  edge-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.edge
+    image: smart-hive-edge:latest
+    container_name: smart-hive-edge
+    restart: unless-stopped
+    # --- CORRECTION: Use bridge network instead of host ---
+    networks:
+      - smart-hive-net
+    ports:
+      # Expose the video port if you need to access it from the host
+      - "5001:5001"
+    volumes:
+      - .:/app
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    image: smart-hive-dashboard:latest
+    container_name: smart-hive-dashboard
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    # --- CORRECTION: Add network definition ---
+    networks:
+      - smart-hive-net
+    # This ensures the dashboard starts after the edge app is ready
+    depends_on:
+      - edge-app
+
+# --- CORRECTION: Define the custom network ---
+networks:
+  smart-hive-net:
+    driver: bridge

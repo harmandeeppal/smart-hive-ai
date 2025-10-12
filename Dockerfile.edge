@@ -1,0 +1,27 @@
+# Dockerfile.edge
+# For building the edge application container
+
+FROM python:3.9-slim-bullseye
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libi2c-dev \
+    libopencv-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- CORRECTION: Use the edge-specific requirements file ---
+COPY requirements-edge.txt .
+
+# Install the lean Python packages
+RUN pip install --no-cache-dir -r requirements-edge.txt
+
+# --- ENHANCEMENT: Install the correct TFLite-Runtime for Raspberry Pi ---
+# This command automatically finds the right version for the Pi's ARM architecture
+RUN pip install --no-cache-dir --index-url https://google-coral.github.io/py-repo/ tflite-runtime
+
+# Copy the rest of the application code
+COPY . .
+
+CMD ["python", "app.py"]

@@ -1,0 +1,9 @@
+paho-mqtt
+boto3
+Flask
+Flask-SocketIO
+python-dotenv
+opencv-python
+tensorflow
+adafruit-circuitpython-sht31d
+adafruit-circuitpython-mpu6050

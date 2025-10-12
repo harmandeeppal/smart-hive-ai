@@ -1,0 +1,21 @@
+# Dockerfile.dashboard
+# For building the web dashboard container
+
+FROM python:3.9-slim-bullseye
+
+WORKDIR /app
+
+# Copy the requirements file and install dependencies
+COPY requirements-dashboard.txt .
+RUN pip install --no-cache-dir -r requirements-dashboard.txt
+
+# --- CORRECTION: Add this line to copy the certificates ---
+COPY certs/ ./certs/
+
+# Copy only the necessary application files
+COPY dashboard/ ./dashboard/
+COPY config.py .
+
+EXPOSE 5000
+
+CMD ["python", "dashboard/dashboard_app.py"]

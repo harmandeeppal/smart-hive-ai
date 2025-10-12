@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Hive AI - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Smart Hive AI Dashboard</h1>
+        <div id="vision-status"></div>
+    </header>
+    <main class="dashboard-grid">
+        <div class="card" id="temperature-card">
+            <h2>Temperature</h2>
+            <p class="sensor-value" id="temp-value">-- °C</p>
+            <div class="gauge-container">
+                <canvas id="temp-gauge"></canvas>
+            </div>
+            <button class="toggle-btn" data-sensor="temperature">Toggle</button>
+        </div>
+        <div class="card" id="humidity-card">
+            <h2>Humidity</h2>
+            <p class="sensor-value" id="hum-value">-- %</p>
+            <div class="gauge-container">
+                <canvas id="hum-gauge"></canvas>
+            </div>
+            <button class="toggle-btn" data-sensor="humidity">Toggle</button>
+        </div>
+        <div class="card" id="vibration-card">
+            <h2>Vibration</h2>
+            <p class="sensor-value" id="vib-value">--</p>
+            <div class="gauge-container">
+                <canvas id="vib-gauge"></canvas>
+            </div>
+            <button class="toggle-btn" data-sensor="vibration">Toggle</button>
+        </div>
+        <div class="card" id="sound-card">
+            <h2>Sound</h2>
+            <p class="sensor-value" id="sound-value">-- dB</p>
+            <div class="gauge-container">
+                <canvas id="sound-gauge"></canvas>
+            </div>
+            <button class="toggle-btn" data-sensor="sound">Toggle</button>
+        </div>
+        <div class="card" id="video-card">
+            <h2>Live Feed</h2>
+            <!-- Point this to the edge app's video server -->
+            <img src="http://127.0.0.1:5001/video_feed" width="100%" alt="Live video feed from the hive.">
+        </div>
+    </main>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Our Custom JavaScript -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
