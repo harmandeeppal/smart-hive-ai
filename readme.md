@@ -1,53 +1,391 @@
-# Smart Hive AI
+# 🐝 Smart Hive AI
 
-A portable, containerized IoT system for real-time honeybee colony monitoring using a Raspberry Pi, a suite of sensors, and on-device AI for queen bee detection. All data is streamed to a live web dashboard via AWS IoT Core.
+> **Real-time IoT + Edge AI system for intelligent honeybee colony monitoring**
 
-![Dashboard Mockup](https://your-image-url-here.com/dashboard.png) <!-- It's great to add a screenshot here -->
+A production-ready, containerized system that combines IoT sensors, computer vision, and AWS cloud services to monitor bee hive health with AI-powered queen detection.
+
+[![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
+[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%204-red)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 ---
 
-## Features
+## 🚀 Features
 
--   **Live Telemetry:** Real-time data from Temperature, Humidity, Vibration, and Sound sensors.
--   **AI-Powered Video:** Live MJPEG video stream with real-time Queen Bee detection overlays from a YOLOv5 TFLite model.
--   **Cloud Integration:** Securely publishes all data to AWS IoT Core and archives snapshots to AWS S3.
--   **Interactive Dashboard:** A Flask and Socket.IO-based web UI for live data visualization and remote sensor control.
--   **Fully Portable:** 100% containerized with Docker, allowing the entire system to run on a laptop (x86) for development and on a Raspberry Pi (ARM64) for deployment with zero code changes.
+### 🌡️ Real-Time Environmental Monitoring
+- **Temperature & Humidity** (BME280 sensor)
+- **Vibration Analysis** (LIS3DH accelerometer)
+- **Sound Monitoring** (USB microphone with frequency analysis)
 
-## Technology Stack
+### 🤖 AI-Powered Vision
+- **Live Video Streaming** (MJPEG)
+- **Queen Bee Detection** (YOLOv5 TFLite model)
+- **Real-time Inference** on Raspberry Pi
 
--   **Edge:** Raspberry Pi 4, Python, OpenCV, TFLite-Runtime, Paho-MQTT, Boto3
--   **Cloud:** AWS IoT Core, AWS S3
--   **Dashboard:** Flask, Flask-SocketIO, Chart.js
--   **Containerization:** Docker, Docker Compose
+### ☁️ AWS Cloud Integration
+- **DynamoDB** - Telemetry data storage
+- **AWS IoT Core** - Real-time MQTT messaging
+- **S3** - Image snapshot archival
 
-## Getting Started
+### 📊 Interactive Dashboard
+- **Live Visualization** (Chart.js)
+- **Real-time Updates** (WebSocket)
+- **Remote Control** (Toggle sensors)
+- **Video Feed** with AI overlays
+
+### 🐳 Fully Containerized
+- **Zero Code Changes** between laptop and Pi
+- **Docker Compose** orchestration
+- **Mock/Real Mode** toggle for development
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Raspberry Pi 4                        │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Edge Application (Docker Container)            │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────┐    │   │
+│  │  │ Sensors  │  │ Camera   │  │ YOLOv5    │    │   │
+│  │  │ BME280   │  │ USB Cam  │  │ TFLite    │    │   │
+│  │  │ LIS3DH   │  │ MJPEG    │  │ Inference │    │   │
+│  │  │ INMP441  │  └──────────┘  └───────────┘    │   │
+│  │  └──────────┘                                   │   │
+│  │       │                                         │   │
+│  │       ▼                                         │   │
+│  │  ┌─────────────────────────────────┐          │   │
+│  │  │   Data Processing & MQTT        │          │   │
+│  │  └─────────────────────────────────┘          │   │
+│  └─────────────────────────────────────────────────┘   │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+                   ▼ AWS IoT Core (MQTT)
+    ┌──────────────────────────────────────┐
+    │           AWS Cloud Services          │
+    │  ┌──────────┐ ┌────────┐ ┌────────┐ │
+    │  │DynamoDB  │ │IoT Core│ │   S3   │ │
+    │  │Telemetry │ │ MQTT   │ │Snapshots│ │
+    │  └──────────┘ └────────┘ └────────┘ │
+    └──────────────────────────────────────┘
+                   │
+                   ▼ WebSocket
+    ┌──────────────────────────────────────┐
+    │     Dashboard (Docker Container)      │
+    │  Flask + SocketIO + Chart.js         │
+    │  http://raspberrypi.local:5000       │
+    └──────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Technology Stack
+
+**Edge Computing:**
+- Raspberry Pi 4 (2GB+ RAM)
+- Python 3.9+
+- OpenCV
+- TensorFlow Lite
+- Paho MQTT
+- Boto3 (AWS SDK)
+
+**Sensors:**
+- BME280 (I2C) - Temperature/Humidity
+- LIS3DH (I2C) - Accelerometer
+- USB Camera
+- USB Microphone
+
+**Cloud Services:**
+- AWS IoT Core (MQTT broker)
+- AWS DynamoDB (time-series data)
+- AWS S3 (image storage)
+- IAM (access control)
+
+**Dashboard:**
+- Flask + Flask-SocketIO
+- Chart.js (real-time charts)
+- WebSocket (live updates)
+
+**DevOps:**
+- Docker + Docker Compose
+- Multi-architecture support (x86/ARM64)
+
+---
+
+## 📋 Quick Start
 
 ### Prerequisites
+- Docker Desktop & Docker Compose
+- AWS Account with credentials
+- Raspberry Pi 4 (for deployment)
 
--   Docker & Docker Compose
--   Python 3.9+
--   An AWS Account configured with credentials.
+### 1. Clone Repository
+```bash
+git clone https://github.com/harmandeeppal/smart-hive-ai.git
+cd smart-hive-ai
+```
 
-### Installation & Configuration
+### 2. Configure AWS Credentials
+```bash
+# Create credentials file
+mkdir -p ~/.aws
+nano ~/.aws/credentials
+```
 
-1.  **Clone the Repository:**
-    ```
-    git clone https://github.com/your-username/smart-hive-ai.git
-    cd smart-hive-ai
-    ```
+```ini
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+```
 
-2.  **Configure Environment Variables:**
-    -   Create a file named `.env` in the root directory by copying the example: `cp .env.example .env`.
-    -   Edit the `.env` file and populate it with your specific AWS IoT endpoint, S3 bucket name, and certificate filenames.
+### 3. Configure Settings
+Edit `config.py`:
+```python
+# Development Mode (laptop with mock sensors)
+IS_MOCK_ENVIRONMENT = True
 
-3.  **Place AWS Certificates:**
-    -   Download your device certificate, private key, and the Amazon Root CA1 file from AWS IoT Core.
-    -   Place them inside the `/certs` directory. Ensure the filenames match what you specified in your `.env` file.
+# Production Mode (Raspberry Pi with real sensors)
+IS_MOCK_ENVIRONMENT = False
+```
 
-### Running the Application
+### 4. Run Application
+```bash
+# Development (laptop)
+docker-compose up --build
 
-This project can be run in two modes:
+# Production (Raspberry Pi)
+docker compose up --build -d
+```
+
+### 5. Access Dashboard
+```
+http://localhost:5000          # Laptop
+http://raspberrypi.local:5000  # Raspberry Pi
+```
+
+---
+
+## 📦 Project Structure
+
+```
+smart-hive-ai/
+├── app.py                    # Main edge application
+├── config.py                 # Configuration settings
+├── docker-compose.yml        # Container orchestration
+├── requirements-edge.txt     # Edge dependencies
+├── requirements-dashboard.txt # Dashboard dependencies
+├── mock_components.py        # Mock sensors for development
+├── real_components.py        # Real hardware interfaces
+├── queen_bee.tflite         # YOLOv5 AI model
+├── certs/                   # AWS IoT certificates
+│   ├── certificate.pem.crt
+│   ├── private.pem.key
+│   └── AmazonRootCA1.pem
+├── dashboard/               # Web dashboard
+│   ├── dashboard_app.py
+│   ├── templates/
+│   │   └── index.html
+│   └── static/
+│       ├── app.js
+│       └── styles.css
+└── docs/                    # Documentation
+    ├── PROJECT_PLAN.md
+    ├── CONFIGURATION_GUIDE.md
+    └── IMPLEMENTATION_SUMMARY.md
+```
+
+---
+
+## 🚀 Deployment
+
+### Laptop Development
+```bash
+# Mock sensors, no hardware required
+docker-compose up --build
+```
+
+### Raspberry Pi Production
+
+**See comprehensive guide:** [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md)
+
+**Quick steps:**
+1. Flash Raspberry Pi OS
+2. Install Docker
+3. Transfer project files
+4. Configure AWS credentials
+5. Connect sensors
+6. Change `IS_MOCK_ENVIRONMENT = False`
+7. Deploy: `docker compose up -d`
+
+**Total time:** 30-45 minutes
+
+---
+
+## 🔧 Configuration
+
+### Key Settings (`config.py`)
+
+```python
+# Environment
+IS_MOCK_ENVIRONMENT = False  # True for laptop, False for Pi
+
+# AWS Services
+ENABLE_DYNAMODB = True       # Store telemetry data
+ENABLE_S3 = True             # Upload snapshots
+AWS_REGION = "ap-southeast-2"
+
+# Intervals (seconds)
+TELEMETRY_INTERVAL_SECONDS = 5        # Sensor reading frequency
+S3_SNAPSHOT_INTERVAL_SECONDS = 120    # Image upload frequency
+VISION_LOOP_INTERVAL_SECONDS = 2      # AI inference frequency
+
+# Sensor Settings
+BME280_ADDRESS = 0x77        # I2C address
+LIS3DH_ADDRESS = 0x18        # I2C address
+CAMERA_DEVICE_INDEX = 0
+```
+
+---
+
+## 📊 Data Flow
+
+### Telemetry Pipeline
+```
+Sensors → app.py → DynamoDB + MQTT → Dashboard
+ (5s)              (real-time)        (live display)
+```
+
+### Vision Pipeline
+```
+Camera → OpenCV → YOLOv5 TFLite → MQTT → Dashboard
+ (30fps)          (inference 2s)         (live video)
+          ↓
+       S3 Snapshots (every 2 min)
+```
+
+---
+
+## 🆘 Troubleshooting
+
+**See comprehensive guide:** [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+
+### Common Issues
+
+**1. AWS Credentials Error**
+```bash
+cat ~/.aws/credentials  # Verify credentials exist
+aws sts get-caller-identity  # Test connection
+```
+
+**2. I2C Sensors Not Found**
+```bash
+sudo raspi-config  # Enable I2C
+sudo i2cdetect -y 1  # Should show devices at 0x18 and 0x77
+```
+
+**3. Dashboard Not Loading**
+```bash
+docker ps  # Check containers running
+docker logs smart-hive-edge  # Check for errors
+```
+
+---
+
+## 🎓 Academic Use
+
+This project was developed as part of a Master's thesis on IoT and Edge AI for agricultural monitoring.
+
+**Research Focus:**
+- Real-time bee colony health monitoring
+- Edge AI for queen detection
+- Time-series analysis of hive conditions
+- Cloud-IoT integration patterns
+
+**Publications:** (Add your thesis/papers here)
+
+---
+
+## 📄 Documentation
+
+- 📖 [Complete Deployment Guide](DEPLOYMENT_GUIDE.md) - Step-by-step Raspberry Pi setup
+- 🆘 [Troubleshooting Guide](TROUBLESHOOTING.md) - Solutions for common issues
+- 🏗️ [Project Plan](docs/PROJECT_PLAN.md) - Architecture and objectives
+- ⚙️ [Configuration Guide](docs/CONFIGURATION_GUIDE.md) - Detailed settings
+- ✅ [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) - Technical details
+
+---
+
+## 🤝 Contributing
+
+This is a thesis project. If you'd like to extend it:
+
+1. Fork the repository
+2. Create a feature branch
+3. Test on both laptop (mock) and Pi (real hardware)
+4. Submit a pull request
+
+---
+
+## 📝 License
+
+MIT License - See LICENSE file for details
+
+---
+
+## 👨‍💻 Author
+
+**Harmandeep Pal**  
+Master's Student - AI/IoT Systems Engineering  
+AUT University, Auckland, New Zealand
+
+---
+
+## 🙏 Acknowledgments
+
+- AWS for IoT Core and cloud services
+- TensorFlow team for TFLite runtime
+- YOLOv5 by Ultralytics
+- Raspberry Pi Foundation
+- AUT University supervisors
+
+---
+
+## 📊 System Status
+
+✅ **Production Ready**  
+✅ DynamoDB - Writing successfully  
+✅ AWS IoT Core - Connected  
+✅ S3 Uploads - Functional  
+✅ Dashboard - Live visualization  
+✅ AI Inference - Real-time detection  
+✅ Hardware - All sensors operational  
+
+**Last Updated:** October 14, 2025
+
+---
+
+## 🚦 Getting Help
+
+1. Check [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+2. Review [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md)
+3. Check Docker logs: `docker logs smart-hive-edge`
+4. Verify AWS credentials: `aws sts get-caller-identity`
+
+---
+
+## 🔮 Future Enhancements
+
+- [ ] Multi-hive monitoring (multiple Pis)
+- [ ] Advanced ML models (bee counting, health classification)
+- [ ] Mobile app for remote monitoring
+- [ ] Automated alerts (temperature thresholds, queen loss)
+- [ ] Historical data analysis dashboard
+- [ ] Integration with beekeeping management software
+
+---
+
+**⭐ Star this repo if you find it useful for your IoT/AI projects!**
 
 **1. Development Mode (Full Simulation on Laptop):**
 This will run both the edge device and the dashboard containers on your machine.
