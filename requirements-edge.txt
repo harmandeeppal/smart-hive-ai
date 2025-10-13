@@ -1,9 +1,9 @@
 paho-mqtt
+Flask
 boto3
-Flask # Needed for the edge app's video server
 python-dotenv
 opencv-python
-# Note: 'tensorflow' is intentionally omitted from this file.
-# The required sensor libraries will also be added here.
-adafruit-circuitpython-sht31d
-adafruit-circuitpython-mpu6050
+adafruit-circuitpython-bme280
+adafruit-circuitpython-lis3dh
+sounddevice
+tflite-runtime

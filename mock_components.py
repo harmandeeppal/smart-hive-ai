@@ -1,4 +1,4 @@
-# mock_sensors.py
+# mock_components.py
 # This file simulates the hardware sensors for development on a laptop.
 
 import time
@@ -6,35 +6,27 @@ import random
 import numpy as np
 import cv2
 
-class MockVisionProcessor:
-    # ... (keep the __init__ and detect_queen methods) ...
-
-    def capture_frame(self):
-        """Simulates capturing a frame by creating a blank image."""
-        frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        text = f"MOCK CAMERA FEED: {time.strftime('%Y-%m-%d %H:%M:%S')}"
-        cv2.putText(frame, text, (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        return frame
-
-
-
-class MockSHT31:
-    """A mock SHT31 temperature and humidity sensor."""
+class MockBME280:
+    """A mock BME280 temperature and humidity sensor."""
     def __init__(self):
-        print("Initialized Mock SHT31 Sensor.")
+        print("Initialized Mock BME280 Sensor.")
         self.temperature = 34.5  # Realistic brood temperature in °C
         self.humidity = 58.0     # Realistic humidity in %
 
     def get_temp_humidity(self):
-        # Return slightly varied data to simulate real readings
-        temp = self.temperature + random.uniform(-0.2, 0.2)
-        hum = self.humidity + random.uniform(-1.0, 1.0)
+        # To test different dashboard statuses, you can modify these values.
+        # Example:
+        # temp = 38.5 # Too Hot
+        # temp = 29.0 # Too Cold
+        temp = 34.5 + random.uniform(-0.2, 0.2)
+        hum = 58.0 + random.uniform(-1.0, 1.0)
+
         return (round(temp, 2), round(hum, 2))
 
-class MockMPU6050:
-    """A mock MPU-6050 vibration sensor."""
+class MockLIS3DH:
+    """A mock LIS3DH vibration sensor."""
     def __init__(self):
-        print("Initialized Mock MPU-6050 Sensor.")
+        print("Initialized Mock LIS3DH Sensor.")
 
     def get_rms_acceleration(self):
         # Simulate a baseline vibration level with occasional spikes
@@ -59,14 +51,15 @@ class MockCamera:
     
     def capture_frame(self):
         # In a real scenario, this would return an OpenCV image (NumPy array).
-        # For simulation, we can just return a placeholder.
-        print("Mock frame captured.")
-        return "dummy_image_frame_data"
+        # For simulation, we create a blank image with a timestamp.
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        text = f"MOCK CAMERA FEED: {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        cv2.putText(frame, text, (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        return frame
 
-# In mock_components.py, add this class:
 class MockVisionProcessor:
     """
-    A mock Vision Processor that simulates YOLOv5 TFLite inference
+    A mock Vision Processor that simulates TFLite inference
     and generates a mock video frame.
     """
     def __init__(self, model_path):
@@ -75,14 +68,18 @@ class MockVisionProcessor:
 
     def detect_queen(self, frame):
         """Simulates queen bee detection on a given frame."""
+        # Simulate a 20% chance of 'detecting' a queen
         if random.random() < 0.2:
+            # Define a bounding box in normalized coordinates [ymin, xmin, ymax, xmax]
             box = [0.45, 0.45, 0.55, 0.55]
             confidence = round(random.uniform(0.85, 0.99), 2)
-            # Draw a green box on the frame to simulate detection
+            
+            # Draw a green box on the frame to visualize the detection
             h, w, _ = frame.shape
-            x_min, y_min = int(box[0] * w), int(box[1] * h)
-            x_max, y_max = int(box[2] * w), int(box[3] * h)
+            x_min, y_min = int(box[1] * w), int(box[0] * h)
+            x_max, y_max = int(box[3] * w), int(box[2] * h)
             cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+            
             print(f"Mock Detection: Queen found with confidence {confidence}")
             return (box, confidence)
         else:
@@ -96,7 +93,7 @@ class MockVisionProcessor:
         self.frame = np.zeros((480, 640, 3), dtype=np.uint8)
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         
-        # Run detection and draw box if found
+        # Run mock detection and draw box if a queen is 'found'
         detection_result = self.detect_queen(self.frame)
 
         # Put timestamp on the image
@@ -104,5 +101,3 @@ class MockVisionProcessor:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         return self.frame, detection_result
-
-        return self.frame

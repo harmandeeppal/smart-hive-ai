@@ -13,10 +13,9 @@ from paho.mqtt import client as mqtt_client
 
 # --- Component Imports ---
 if config.IS_MOCK_ENVIRONMENT:
-    from mock_components import MockSHT31, MockMPU6050, MockINMP441, MockVisionProcessor
+    from mock_components import MockBME280, MockLIS3DH, MockINMP441, MockVisionProcessor
 else:
-    from real_components import RealSHT31, RealMPU6050, RealVisionProcessor
-    from mock_components import MockINMP441 as RealINMP441 # Placeholder
+    from real_components import RealBME280, RealLIS3DH, RealVisionProcessor, RealINMP441
 
 class SmartHiveSystem:
     def __init__(self):
@@ -41,15 +40,15 @@ class SmartHiveSystem:
         """Initializes all hardware or mock components."""
         if config.IS_MOCK_ENVIRONMENT:
             print("INITIALIZING MOCK ENVIRONMENT...")
-            self.temp_humidity_sensor = MockSHT31()
-            self.vibration_sensor = MockMPU6050()
+            self.temp_humidity_sensor = MockBME280()
+            self.vibration_sensor = MockLIS3DH()
             self.sound_sensor = MockINMP441()
             self.vision_processor = MockVisionProcessor(model_path="queen_bee.tflite")
         else:
             # This block is for the real Raspberry Pi
             print("INITIALIZING REAL HARDWARE...")
-            self.temp_humidity_sensor = RealSHT31()
-            self.vibration_sensor = RealMPU6050()
+            self.temp_humidity_sensor = RealBME280()
+            self.vibration_sensor = RealLIS3DH()
             self.sound_sensor = RealINMP441() # Still using mock as a placeholder
             self.vision_processor = RealVisionProcessor(model_path="queen_bee.tflite")
 
@@ -209,7 +208,7 @@ class SmartHiveSystem:
             except Exception as e:
                 print(f"Error in telemetry loop: {e}")
             
-            time.sleep(5) # Main telemetry interval
+            time.sleep(config.TELEMETRY_INTERVAL_SECONDS) # Main telemetry interval
 
     def vision_loop(self):
         """Loop for performing AI vision detection and publishing results."""
@@ -234,7 +233,7 @@ class SmartHiveSystem:
             except Exception as e:
                 print(f"Error in vision loop: {e}")
 
-            time.sleep(0.1) # Vision processing can be faster
+            time.sleep(config.VISION_LOOP_INTERVAL_SECONDS) # Vision processing can be faster
 
     def run(self):
         """--- CORRECTION: Cleaned up run method to only manage threads ---"""

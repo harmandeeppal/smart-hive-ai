@@ -1,42 +1,78 @@
 # real_components.py
 import board
-import adafruit_sht31d
-import adafruit_mpu6050
+import adafruit_bme280
+import adafruit_lis3dh
 import cv2
 import numpy as np
 import tflite_runtime.interpreter as tflite
+import sounddevice as sd
 
-class RealSHT31:
-    """Interface for the real SHT31 sensor."""
+class RealINMP441:
+    """Interface for a real microphone using sounddevice."""
+    def __init__(self, sample_rate=44100, duration_ms=100):
+        self.sample_rate = sample_rate
+        self.duration_ms = duration_ms
+        self.is_working = True
+        try:
+            # Check if any microphone is available
+            if len(sd.query_devices(kind='input')) == 0:
+                raise RuntimeError("No microphone found.")
+            print("Successfully initialized Real INMP441 (Microphone).")
+        except Exception as e:
+            print(f"Error initializing Real INMP441: {e}")
+            self.is_working = False
+
+    def get_db_level(self):
+        if not self.is_working:
+            return -100.0 # Return a very low dB value on error
+
+        try:
+            # Record audio for a short duration
+            recording = sd.rec(int(self.duration_ms / 1000 * self.sample_rate), samplerate=self.sample_rate, channels=1, dtype='float32')
+            sd.wait()  # Wait for recording to complete
+
+            # Calculate RMS (Root Mean Square) of the audio signal
+            rms = np.sqrt(np.mean(recording**2))
+
+            # Convert RMS to dB. Add a small epsilon to avoid log(0).
+            db = 20 * np.log10(rms + 1e-12)
+            
+            return db
+        except Exception as e:
+            print(f"Error reading from microphone: {e}")
+            return -100.0
+
+class RealBME280:
+    """Interface for the real BME280 sensor."""
     def __init__(self):
         try:
             i2c = board.I2C()
-            self.sensor = adafruit_sht31d.SHT31D(i2c)
-            print("Successfully initialized Real SHT31 Sensor.")
+            self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c)
+            print("Successfully initialized Real BME280 Sensor.")
         except Exception as e:
-            print(f"Error initializing Real SHT31: {e}")
+            print(f"Error initializing Real BME280: {e}")
             self.sensor = None
     
     def get_temp_humidity(self):
         if self.sensor:
-            return (self.sensor.temperature, self.sensor.relative_humidity)
+            return (self.sensor.temperature, self.sensor.humidity)
         return (0.0, 0.0) # Return default values on error
 
-class RealMPU6050:
-    """Interface for the real MPU-6050 sensor."""
+class RealLIS3DH:
+    """Interface for the real LIS3DH sensor."""
     def __init__(self):
         try:
             i2c = board.I2C()
-            self.sensor = adafruit_mpu6050.MPU6050(i2c)
-            print("Successfully initialized Real MPU-6050 Sensor.")
+            self.sensor = adafruit_lis3dh.LIS3DH_I2C(i2c)
+            print("Successfully initialized Real LIS3DH Sensor.")
         except Exception as e:
-            print(f"Error initializing Real MPU-6050: {e}")
+            print(f"Error initializing Real LIS3DH: {e}")
             self.sensor = None
 
     def get_rms_acceleration(self):
         if self.sensor:
             x, y, z = self.sensor.acceleration
-            rms = np.sqrt((x**2 + y**2 + z**2) / 3)
+            rms = np.sqrt(x**2 + y**2 + z**2)
             return rms
         return 0.0
 

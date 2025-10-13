@@ -2,6 +2,7 @@ import json
 import ssl
 import time # <--- FIX 1: Added missing 'time' import
 import threading
+import requests
 from flask import Response
 from flask import Flask, render_template
 from flask_socketio import SocketIO
@@ -24,23 +25,30 @@ socketio = SocketIO(app, async_mode='threading')
 # FIX 4: Changed to VERSION2 (or simply removed the argument)
 mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id="SmartHive_Dashboard")
 
-# --- Video Streaming Placeholder ---
-def gen_frames():
-    """Generator function for video streaming."""
-    while True:
-        # Placeholder logic
-        time.sleep(1) 
-        # In a real app, you'd yield MJPEG frames here:
-        # yield (b'--frame\r\n'
-        #        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
+# --- Video Streaming Proxy ---
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route (Placeholder for MJPEG)."""
-    # NOTE: The real MJPEG implementation would return a Response with
-    # mimetype='multipart/x-mixed-replace; boundary=frame' and use gen_frames.
-    return Response("Video stream will be implemented with Docker.", mimetype='text/plain')
-
+    """Proxies the video stream from the edge-app container."""
+    try:
+        # The URL of the video stream from the other Docker container
+        video_url = "http://edge-app:5001/video_feed"
+        
+        # Use requests to get the stream. stream=True is crucial.
+        resp = requests.get(video_url, stream=True, timeout=10)
+        # Check if the request was successful
+        if resp.status_code == 200:
+            # Return a streaming response that forwards the headers and content
+            return Response(resp.iter_content(chunk_size=1024), 
+                            content_type=resp.headers['Content-Type'],
+                            status=resp.status_code)
+        else:
+            # If the edge app is not ready or there's an error, return a placeholder
+            error_message = f"Error fetching stream from edge-app: Status {resp.status_code}"
+            return Response(error_message, mimetype='text/plain')
+    except requests.exceptions.RequestException as e:
+        # Handle connection errors (e.g., if the edge-app is not running)
+        error_message = f"Could not connect to video stream at {video_url}: {e}"
+        return Response(error_message, mimetype='text/plain')
 
 # --- MQTT Client Logic ---
 

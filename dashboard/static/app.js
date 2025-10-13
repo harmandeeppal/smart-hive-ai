@@ -38,47 +38,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTemperature(temp) {
+        if (temp === undefined || temp === null) return;
         elements.temp.val.textContent = `${temp.toFixed(1)} °C`;
         let status, action, percent;
-        if (temp < 32) { status = 'Too Cold'; action = 'Check for drafts or insulation.'; percent = (temp / 32) * 33; }
-        else if (temp > 36) { status = 'Too Hot'; action = 'Consider ventilation or shade.'; percent = 67 + ((temp - 36) / 14) * 33; }
-        else { status = 'Optimal'; action = 'None required.'; percent = 33 + ((temp - 32) / 4) * 34; }
+        if (temp <= 32) { 
+            status = 'Too Cold'; 
+            action = 'LOW TEMP ALERT: Investigate colony strength or insulation.'; 
+            percent = (temp / 32) * 33; 
+        } else if (temp >= 37) { 
+            status = 'Too Hot'; 
+            action = 'HIGH TEMP ALERT: Consider ventilation or shade.'; 
+            percent = 67 + ((temp - 37) / 13) * 33; // Adjusted range
+        } else { 
+            status = 'Optimal'; 
+            action = 'None required.'; 
+            percent = 33 + ((temp - 32) / 5) * 34; // Adjusted range
+        }
         elements.temp.status.textContent = status;
         elements.temp.action.textContent = action;
         elements.temp.bar.style.setProperty('--marker-pos', `${Math.min(100, Math.max(0, percent))}%`);
     }
 
     function updateHumidity(hum) {
+        if (hum === undefined || hum === null) return;
         elements.hum.val.textContent = `${hum.toFixed(1)} %`;
         let status, action, percent;
-        if (hum < 50) { status = 'Too Dry'; action = 'Check water source.'; percent = (hum / 50) * 33; }
-        else if (hum > 70) { status = 'Too Wet'; action = 'Increase ventilation.'; percent = 67 + ((hum - 70) / 30) * 33; }
-        else { status = 'Optimal'; action = 'None required.'; percent = 33 + ((hum - 50) / 20) * 34; }
+        if (hum <= 45) { 
+            status = 'Too Dry'; 
+            action = 'LOW HUMIDITY ALERT: Consider supplemental water.'; 
+            percent = (hum / 45) * 33; 
+        } else if (hum >= 75) { 
+            status = 'Too Wet'; 
+            action = 'HIGH HUMIDITY ALERT: Check for moisture and poor ventilation.'; 
+            percent = 67 + ((hum - 75) / 25) * 33; // Adjusted range
+        } else { 
+            status = 'Optimal'; 
+            action = 'None required.'; 
+            percent = 33 + ((hum - 45) / 30) * 34; // Adjusted range
+        }
         elements.hum.status.textContent = status;
         elements.hum.action.textContent = action;
         elements.hum.bar.style.setProperty('--marker-pos', `${Math.min(100, Math.max(0, percent))}%`);
     }
 
     function updateVibration(rms) {
+        if (rms === undefined || rms === null) return;
         elements.vib.val.textContent = `${rms.toFixed(4)} RMS`;
-        let status = 'Normal Activity', action = 'None required.';
-        if (rms > 0.2) { status = 'High Activity'; action = 'Possible disturbance or swarm prep.'; }
+        let status, action;
+        if (rms > 0.15) { // Threshold for 'Agitated'
+            status = 'Agitation Alert'; 
+            action = 'Hive disturbed or under attack.'; 
+        } else if (rms < 0.02) { // Threshold for 'Low Activity'
+            status = 'Low Activity Alert';
+            action = 'Possible cluster immobilization or weakness.';
+        } else {
+            status = 'Normal Activity';
+            action = 'None required.';
+        }
         elements.vib.status.textContent = status;
         elements.vib.action.textContent = action;
         elements.vib.magnitude.style.setProperty('--magnitude', `${Math.min(100, (rms / 0.3) * 100)}%`);
         
-        // Update trend sparkline
         vibrationHistory.push(rms);
         if (vibrationHistory.length > 10) vibrationHistory.shift();
         elements.vib.trend.textContent = generateSparkline(vibrationHistory);
     }
 
     function updateSound(db) {
+        if (db === undefined || db === null) return;
         elements.sound.val.textContent = `${db.toFixed(1)} dB`;
-        elements.sound.status.textContent = 'Healthy Hum'; // Placeholder
-        elements.sound.action.textContent = 'None required.'; // Placeholder
-        elements.sound.volume.style.setProperty('--magnitude', `${Math.min(100, (db / 80) * 100)}%`);
-        // NOTE: Frequency bar is not updated as this data is not available from the sensor.
+        // NOTE: This is a placeholder. Real implementation requires frequency analysis.
+        elements.sound.status.textContent = 'Queen Status Alert'; 
+        elements.sound.action.textContent = 'Abnormal sound detected. Schedule inspection.';
+        elements.sound.volume.style.setProperty('--magnitude', `${Math.min(100, ((db + 60) / 80) * 100)}%`); // Offset for better visualization of dB
     }
 
     function updateAiStatus(data) {
@@ -97,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const sparklineChars = [' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
         if (data.length < 2) return '';
         const max = Math.max(...data);
-        return data.map(d => sparklineChars[Math.floor((d / max) * (sparklineChars.length - 1))]).join('');
+        return data.map(d => sparklineChars[Math.floor((d / (max || 1)) * (sparklineChars.length - 1))]).join('');
     }
 
     // --- TOGGLE BUTTONS ---

@@ -7,3 +7,4 @@ opencv-python
 tensorflow
 adafruit-circuitpython-sht31d
 adafruit-circuitpython-mpu6050
+sounddevice  

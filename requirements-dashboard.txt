@@ -2,5 +2,6 @@ paho-mqtt
 Flask
 Flask-SocketIO
 python-dotenv
+requests
 # Note: We do not need boto3, tensorflow, opencv, or any adafruit libraries
 # for the dashboard itself. They are only needed for the edge device.

@@ -28,7 +28,17 @@ TOPIC_CONTROL = "hive/control"
 
 # --- AWS S3 Settings ---
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-S3_SNAPSHOT_INTERVAL_SECONDS = 60 # 1 minute
+
+# -----------------------------------------------------------------------------
+# --- Task Loop Intervals (in seconds) ---
+# -----------------------------------------------------------------------------
+# How often to read and publish sensor telemetry data
+TELEMETRY_INTERVAL_SECONDS = 5
+# How often to run the AI vision processing loop
+VISION_LOOP_INTERVAL_SECONDS = 1
+# How often to upload a general snapshot to S3
+S3_SNAPSHOT_INTERVAL_SECONDS = 300 # 5 minutes
+
 
 # --- Application Settings ---
 # Set to False when deploying on the Raspberry Pi
