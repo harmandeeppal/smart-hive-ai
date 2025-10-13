@@ -97,10 +97,12 @@ class MockVisionProcessor:
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
         
         # Run detection and draw box if found
-        self.detect_queen(self.frame)
+        detection_result = self.detect_queen(self.frame)
 
         # Put timestamp on the image
         cv2.putText(self.frame, f"MOCK FEED: {timestamp}", (20, 460), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+        return self.frame, detection_result
 
         return self.frame

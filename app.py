@@ -84,8 +84,27 @@ class SmartHiveSystem:
             print(f"Failed to connect to AWS IoT Core, return code {rc}\n. Retrying...")
 
     def on_control_message(self, client, userdata, msg):
-        # (This method is correct as-is in your file)
-        pass # Placeholder for brevity
+        """Callback for handling commands from the dashboard."""
+        try:
+            payload = json.loads(msg.payload.decode())
+            sensor = payload.get("sensor")
+            state = payload.get("state")
+
+            if sensor in self.sensor_events:
+                if state == "on":
+                    self.sensor_events[sensor].set() # Resume task
+                    print(f"Resumed sensor: {sensor}")
+                elif state == "off":
+                    self.sensor_events[sensor].clear() # Pause task
+                    print(f"Paused sensor: {sensor}")
+                else:
+                    print(f"Invalid state '{state}' for sensor '{sensor}'")
+            else:
+                print(f"Unknown sensor in control message: {sensor}")
+        except json.JSONDecodeError:
+            print(f"Could not decode JSON payload from control topic: {msg.payload}")
+        except Exception as e:
+            print(f"Error in on_control_message: {e}")
 
     # --- Video Streaming Methods ---
     def setup_routes(self):
@@ -129,7 +148,7 @@ class SmartHiveSystem:
         while self.is_running:
             try:
                 # --- CORRECTION: Use the newly created method ---
-                frame = self.vision_processor.capture_and_process_frame()
+                frame, _ = self.vision_processor.capture_and_process_frame()
                 if frame is not None:
                     ret, buffer = cv2.imencode('.jpg', frame)
                     if ret:
@@ -148,6 +167,23 @@ class SmartHiveSystem:
                 print(f"An error occurred in the S3 snapshot loop: {e}")
             
             time.sleep(config.S3_SNAPSHOT_INTERVAL_SECONDS)
+
+    def upload_detection_snapshot(self, frame, confidence):
+        """Uploads a snapshot of a queen detection to S3."""
+        try:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            if ret:
+                frame_bytes = buffer.tobytes()
+                timestamp = int(time.time())
+                filename = f"detection_{timestamp}_conf_{int(confidence*100)}.jpg"
+                
+                if config.IS_MOCK_ENVIRONMENT:
+                    print(f"[S3 MOCK] Queen detected! Would upload '{filename}' to bucket '{config.S3_BUCKET_NAME}'.")
+                else:
+                    self.s3_client.put_object(Bucket=config.S3_BUCKET_NAME, Key=filename, Body=frame_bytes)
+                    print(f"QUEEN DETECTED! Successfully uploaded {filename} to S3.")
+        except Exception as e:
+            print(f"An error occurred in the detection snapshot upload: {e}")
     
     def telemetry_loop(self):
         """--- ENHANCEMENT: Unified loop for all telemetry sensors ---"""
@@ -180,11 +216,21 @@ class SmartHiveSystem:
         while self.is_running:
             try:
                 self.sensor_events["vision"].wait() # Allow pausing the vision task
-                frame = self.vision_processor.capture_and_process_frame()
+                frame, (box, confidence) = self.vision_processor.capture_and_process_frame()
                 
-                # In a real app, detection logic would be here and would publish to hive/vision
-                # For now, this loop just drives the camera for the video stream
-                
+                if box is not None and confidence is not None:
+                    # 1. Publish detection event to dashboard
+                    payload = {
+                        "timestamp": int(time.time()),
+                        "queen_detected": True,
+                        "confidence": float(confidence),
+                        "box": box if isinstance(box, list) else box.tolist() # Convert numpy array to list for JSON
+                    }
+                    self.mqtt_client.publish(config.TOPIC_VISION, json.dumps(payload), qos=1)
+
+                    # 2. Upload a snapshot of the detection
+                    self.upload_detection_snapshot(frame, confidence)
+
             except Exception as e:
                 print(f"Error in vision loop: {e}")
 
@@ -200,7 +246,7 @@ class SmartHiveSystem:
                 self.start_video_server: (),
                 self.s3_snapshot_loop: (),
                 self.telemetry_loop: (),
-                # self.vision_loop is implicitly run by other loops needing frames
+                self.vision_loop: (),
             }
             
             for target_func, args in task_map.items():

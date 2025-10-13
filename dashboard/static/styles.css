@@ -1,10 +1,57 @@
-body { font-family: sans-serif; margin: 0; background-color: #f8f9fa; color: #333; }
-header { background-color: #343a40; color: white; padding: 1rem; text-align: center; }
-#vision-status { font-weight: bold; color: #ffc107; min-height: 24px; transition: all 0.3s; }
-#vision-status.detected { color: #28a745; transform: scale(1.1); }
-.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; padding: 1rem; }
-.card { background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1.5rem; text-align: center; }
-.sensor-value { font-size: 2.5rem; font-weight: bold; margin: 0.5rem 0; color: #007bff; }
-.gauge-container { height: 100px; margin: 1rem 0; }
-.toggle-btn { background-color: #6c757d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-.toggle-btn:hover { background-color: #5a6268; }
+/* General Body and Header Styles */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #1c1e21; }
+header { background-color: #4267B2; color: white; padding: 1rem 2rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+header h1 { margin: 0; font-size: 1.5rem; }
+#last-updated { font-size: 0.8rem; color: #ddd; }
+
+/* Dashboard Grid Layout */
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; padding: 1.5rem; }
+
+/* Card Styles */
+.card { background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 1.5rem; display: flex; flex-direction: column; }
+.card h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 1rem; color: #4267B2; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+.sensor-value { font-size: 2.2rem; font-weight: 600; margin: 0.5rem 0; color: #1c1e21; text-align: center; }
+
+/* Linear Gauge Styles (Temp & Humidity) */
+.linear-gauge-container { margin: 1rem 0; }
+.gauge-bar { height: 20px; background: linear-gradient(to right, #6c757d, #28a745, #dc3545); border-radius: 10px; position: relative; }
+.gauge-bar::after { /* This will be the marker */
+    content: '▼';
+    position: absolute;
+    top: 18px;
+    font-size: 1.2rem;
+    color: #1c1e21;
+    transform: translateX(-50%);
+    transition: left 0.5s ease-out;
+}
+.gauge-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: #606770; margin-top: 0.5rem; }
+
+/* Magnitude & Dual Bar Styles (Vibration & Sound) */
+.magnitude-container, .dual-bar-container { margin: 1rem 0; text-align: left; }
+.magnitude-container span, .dual-bar-container span { font-weight: 600; margin-right: 0.5rem; }
+.magnitude-bar { display: inline-block; width: 60%; height: 15px; background-color: #e9ecef; border-radius: 5px; overflow: hidden; }
+.magnitude-bar::after { /* The filled portion */
+    content: '';
+    display: block;
+    height: 100%;
+    background-color: #007bff;
+    border-radius: 5px;
+    transition: width 0.5s ease-out;
+}
+.dual-bar-container div { margin-bottom: 0.5rem; }
+
+/* Status and Action Text */
+.status-text, .action-text, .trend-text { font-size: 0.9rem; text-align: center; margin: 0.5rem 0; }
+.status-text span, .action-text span, .trend-text span { font-weight: 600; }
+
+/* AI Vision Card Styles */
+#video-card { grid-column: span 2; /* Make video card wider if possible */ }
+#video-card img { border-radius: 4px; background-color: #000; }
+.ai-status { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: #606770; }
+#ai-status-text.detected { color: #28a745; font-weight: bold; }
+
+/* Toggle Button Styles */
+.toggle-btn { background-color: #4267B2; color: white; border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; margin-top: auto; /* Pushes button to bottom */ }
+.toggle-btn:hover { background-color: #365899; }
+.toggle-btn.off { background-color: #6c757d; }
+.toggle-btn.off:hover { background-color: #5a6268; }

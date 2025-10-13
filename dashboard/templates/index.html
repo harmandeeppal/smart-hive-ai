@@ -9,52 +9,84 @@
 <body>
     <header>
         <h1>Smart Hive AI Dashboard</h1>
-        <div id="vision-status"></div>
+        <div id="last-updated">Last Updated: --</div>
     </header>
     <main class="dashboard-grid">
+        <!-- Temperature Card -->
         <div class="card" id="temperature-card">
             <h2>Temperature</h2>
             <p class="sensor-value" id="temp-value">-- °C</p>
-            <div class="gauge-container">
-                <canvas id="temp-gauge"></canvas>
+            <div class="linear-gauge-container">
+                <div class="gauge-bar" id="temp-bar"></div>
+                <div class="gauge-labels">
+                    <span>&lt; 32°C</span>
+                    <span>32-36°C</span>
+                    <span>&gt; 36°C</span>
+                </div>
             </div>
-            <button class="toggle-btn" data-sensor="temperature">Toggle</button>
+            <p class="status-text">Status: <span id="temp-status">--</span></p>
+            <p class="action-text">Action: <span id="temp-action">--</span></p>
+            <button class="toggle-btn" data-sensor="temperature">Toggle: ON</button>
         </div>
+
+        <!-- Humidity Card -->
         <div class="card" id="humidity-card">
             <h2>Humidity</h2>
             <p class="sensor-value" id="hum-value">-- %</p>
-            <div class="gauge-container">
-                <canvas id="hum-gauge"></canvas>
+            <div class="linear-gauge-container">
+                <div class="gauge-bar" id="hum-bar"></div>
+                <div class="gauge-labels">
+                    <span>&lt; 50%</span>
+                    <span>50-70%</span>
+                    <span>&gt; 70%</span>
+                </div>
             </div>
-            <button class="toggle-btn" data-sensor="humidity">Toggle</button>
+            <p class="status-text">Status: <span id="hum-status">--</span></p>
+            <p class="action-text">Action: <span id="hum-action">--</span></p>
+            <button class="toggle-btn" data-sensor="humidity">Toggle: ON</button>
         </div>
+
+        <!-- Vibration Card -->
         <div class="card" id="vibration-card">
             <h2>Vibration</h2>
-            <p class="sensor-value" id="vib-value">--</p>
-            <div class="gauge-container">
-                <canvas id="vib-gauge"></canvas>
+            <p class="sensor-value" id="vib-value">-- RMS</p>
+            <div class="magnitude-container">
+                <span>Activity:</span>
+                <div class="magnitude-bar" id="vib-magnitude"></div>
             </div>
-            <button class="toggle-btn" data-sensor="vibration">Toggle</button>
+            <p class="trend-text">Trend (5m): <span id="vib-trend">--</span></p>
+            <p class="status-text">Status: <span id="vib-status">--</span></p>
+            <p class="action-text">Action: <span id="vib-action">--</span></p>
+            <button class="toggle-btn" data-sensor="vibration">Toggle: ON</button>
         </div>
+
+        <!-- Sound Card -->
         <div class="card" id="sound-card">
-            <h2>Sound</h2>
+            <h2>Sound Profile</h2>
             <p class="sensor-value" id="sound-value">-- dB</p>
-            <div class="gauge-container">
-                <canvas id="sound-gauge"></canvas>
+            <div class="dual-bar-container">
+                <span>Volume:</span> <div class="magnitude-bar" id="sound-volume"></div>
+                <span>Frequency:</span> <div class="magnitude-bar" id="sound-frequency"></div>
             </div>
-            <button class="toggle-btn" data-sensor="sound">Toggle</button>
+            <p class="status-text">Status: <span id="sound-status">--</span></p>
+            <p class="action-text">Action: <span id="sound-action">--</span></p>
+            <button class="toggle-btn" data-sensor="sound">Toggle: ON</button>
         </div>
+
+        <!-- AI Vision Card -->
         <div class="card" id="video-card">
-            <h2>Live Feed</h2>
-            <!-- Point this to the edge app's video server -->
+            <h2>AI Vision - Live Feed</h2>
             <img src="http://127.0.0.1:5001/video_feed" width="100%" alt="Live video feed from the hive.">
+            <div class="ai-status">
+                <span>AI Status: <strong id="ai-status-text">--</strong></span>
+                <span>Last Snapshot: <strong id="ai-snapshot-time">--</strong></span>
+            </div>
         </div>
     </main>
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Note: Chart.js is no longer needed for this design -->
     
     <!-- Our Custom JavaScript -->
     <script src="{{ url_for('static', filename='app.js') }}"></script>

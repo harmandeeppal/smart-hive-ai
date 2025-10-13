@@ -1,9 +1,103 @@
-Before you proceed for the Final Deployment.
+First, I would like to know if the project fulfills all the requirements mentioned in the project plan (GEMINI.md)?
 
 I have a few questions and issues that I would like to discuss.
 1. The toggle button is there, but I cannot determine if it is on or off from the front end, nor does it seems to actually turn off any of the features that are running.
-2. Live camera feed is displaying nothing at the moment (I would like to test this live before we move it for the final deployment).
-3. The live feed is for queen bee detection, i would like to check if it is actually detecting queen be and taking a photo and uploading it on the AWS. (Note: it also needs to create a frame around the queen bee and show the accuracy what it is detecting the queen bee. This feature should actually work and detect queen bee from a bunch of bees, if I show a photo of number of bees or real bee hive with bees.
-4. With each of the dashboard feture that we have build (temp, humidity, sound, etc), based on the research that we have done, any anomalies in the bee hive should be 
-5. My sensors are from Sun Founder Raspberry Pi Sensor Kit. Will they be okay on the code that we have here in the project?
-6 Do my hardware sensor needs to be in specific pins on the breadboard / or do i have to mention anything about the hardware connectivity in my code?
+
+2. Live camera feed is displaying nothing but a blank screen at the moment (I would like to test this live before we move it for the final deployment).
+
+3. The live feed is for queen bee detection. I would like to check if it is actually detecting the queen bee and taking a photo, and uploading it to AWS. (Note: it also needs to create a frame around the queen bee and show the accuracy of what it is detecting the queen bee. This feature should actually work and detect a queen bee from a bunch of bees, if I show a photo of a number of bees or a real bee hive with bees.
+
+4. With each of the dashboard features that we have built (temp, humidity, sound, etc), based on the research that we have done.
+Breakdown of the Design Improvements
+Here's why this new layout is more effective, based on your requirements:
+
+a. Contextual Visuals (Not Just Gauges)
+Your original radial gauges are clean but lack context. This design uses more informative visuals for each sensor.
+
+Temperature & Humidity: These are represented by linear range bars. This is intuitively better for showing a value within a specific optimal range.
+
+The bar is clearly divided into three zones: too low, optimal ([=====]), and too high.
+
+The current value is marked with a # or is implicitly where the bar ends.
+
+Crucially, the exact optimal values (e.g., 32-36°C) are written below the bar for clear reference.
+
+Vibration: Vibration isn't about an "optimal" range but about detecting anomalies from a baseline.
+
+The visual is a simple magnitude bar showing the current activity level from "Calm" to "Agitated."
+
+A Trend sparkline (__./¯\_) is added. This is a powerful, compact way to show if the hive has been calm, recently disturbed, or is consistently agitated.
+
+Sound: Sound is complex; a single dB value doesn't tell the whole story.
+
+The design breaks it down into two key components: Volume (dB) and Frequency (Pitch). A queenless hive might not be louder, but its frequency is higher (a "roar"). This dual-bar approach provides a richer diagnostic.
+
+b. Clear Status and Actionable Advice
+This is the most critical improvement. Below each visual, there are two new lines:
+
+Status: A plain-English summary of the current state. Instead of the user having to interpret "37.1 °C," the dashboard tells them it's "Too Hot."
+
+Action: This is the decision-support feature. When a parameter is out of the optimal range, it provides a simple, direct recommendation.
+
+Example: If the temperature is too high, it suggests: "Consider ventilation or shade."
+
+Example: If the sound profile indicates a high-frequency roar, a future version could suggest: "Action: Schedule manual inspection for queen."
+
+c. Intelligent Live Feed Card
+The live feed card is no longer just a video box. It's an AI status panel.
+
+The ASCII art shows a clear bounding box around a detected queen.
+
+The AI Status line provides feedback on what the model is doing ("Actively Scanning," "QUEEN DETECTED").
+
+It also confirms the last successful snapshot time, giving the user confidence that the cloud storage feature is working.
+
+d. Simplicity is Maintained
+Despite adding more information, the design adheres to your request for simplicity.
+
+The one-row, card-based layout is preserved.
+
+The typography and spacing are clean and uncluttered.
+
+The primary numeric value is still the most prominent element in each card, allowing for a quick glance.
+
+This design elevates the dashboard from a simple data display to a true beehive management tool, which is perfect for a Master's level project.
+
+
+.-------------------------------------------------------------------------------------------------------------------------------------------------.
+|                                                         SMART HIVE AI DASHBOARD                                                         |
+|                                                     Last Updated: 12/10/2025 15:07:38                                                     |
+'-------------------------------------------------------------------------------------------------------------------------------------------------'
+.----------------------------------------.  .----------------------------------------.  .----------------------------------------.
+| Temperature                            |  | Humidity                               |  | Vibration                              |
+|                                        |  |                                        |  |                                        |
+|                  37.1 °C               |  |                  58.1 %                |  |                  0.0515 RMS            |
+|                                        |  |                                        |  |                                        |
+| Cold |--------[=====]--#---| Hot      |  | Dry  |-----[=====]-----| Wet        |  | Activity Level: [|||||     ] Calm > Agitated |
+|       < 32°C    32-36°C   > 36°C       |  |      < 50%   50-70%   > 70%        |  | Trend (Last 5 mins): __./¯\_             |
+|                                        |  |                                        |  |                                        |
+| Status: Too Hot                        |  | Status: Optimal                        |  | Status: Normal Activity                |
+| Action: Consider ventilation or shade. |  | Action: None required.                 |  | Action: None required.                 |
+|                                        |  |                                        |  |                                        |
+|               [ Toggle: ON ]           |  |               [ Toggle: ON ]           |  |               [ Toggle: ON ]           |
+'----------------------------------------'  '----------------------------------------'  '----------------------------------------'
+.----------------------------------------.  .----------------------------------------------------------------------------------.
+| Sound Profile                          |  | AI Vision - Live Feed                                                            |
+|                                        |  |                                                                                  |
+|                51.7 dB                 |  |   +--------------------------------------------------------------------------+   |
+|                                        |  |   |    b      b             b    b                                            |   |
+| Volume:    [|||||||   ] Quiet > Loud   |  |   | b     b       +-------------------+        b          b                     |   |
+| Frequency: [|||||     ] Low > High     |  |   |           b   |  QUEEN DETECTED   |  b                                     |   |
+|                                        |  |   |      b        |      (96%)        |           b                            |   |
+| Status: Healthy Hum                    |  |   |   b           +-------------------+   b                                    |   |
+| Action: None required.                 |  |   |          b            b                                 b                |   |
+|                                        |  |   +--------------------------------------------------------------------------+   |
+|               [ Toggle: ON ]           |  |                                                                                  |
+|                                        |  | AI Status: Actively Scanning        Last Snapshot: 12/10/2025 15:07:00           |
+'----------------------------------------'  '----------------------------------------------------------------------------------'
+
+5. My sensors are from the Sun Founder Raspberry Pi Sensor Kit. Will they be okay with the code that we have here in the project?
+
+6 Do my hardware sensor needs to be in specific pins on the breadboard / or do I have to mention anything about the hardware connectivity in my code?
+
+7. I was told by the AI agents that "Notice the enhancement: We are now only copying the dashboard/ directory and the config.py file into this container. It has no knowledge of app.py, mock_components.py, etc., making the container smaller and more secure." WHY? Will it not affect my testing on the laptop?

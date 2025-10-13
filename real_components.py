@@ -85,9 +85,12 @@ class RealVisionProcessor:
         classes = self.interpreter.get_tensor(self.output_details[1]['index'])[0]
         scores = self.interpreter.get_tensor(self.output_details[2]['index'])[0]
         
+        detection_result = (None, None)
+
         # (Assuming Queen Bee is class 0, and you'll need a labels file)
         for i in range(len(scores)):
             if scores[i] > 0.5: # Confidence threshold
+                detection_result = (boxes[i], scores[i])
                 y_min, x_min, y_max, x_max = boxes[i]
                 
                 # Convert from normalized to pixel coordinates
@@ -99,6 +102,7 @@ class RealVisionProcessor:
                 label = f"Queen: {int(scores[i]*100)}%"
                 cv2.putText(frame, label, (int(left), int(top) - 10), 
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        
+                break # Assume only one queen, take the highest score
+
         self.frame = frame # Store the annotated frame
-        return self.frame
+        return self.frame, detection_result
