@@ -187,6 +187,17 @@ class SmartHiveSystem:
     def telemetry_loop(self):
         """--- ENHANCEMENT: Unified loop for all telemetry sensors ---"""
         while self.is_running:
+            # Wait until at least one sensor is enabled before continuing
+            while self.is_running and not any([
+                self.sensor_events["temperature"].is_set(),
+                self.sensor_events["vibration"].is_set(),
+                self.sensor_events["sound"].is_set()
+            ]):
+                time.sleep(1)  # Sleep while all sensors are toggled off
+            
+            if not self.is_running:
+                break
+                
             try:
                 payload = {"timestamp": int(time.time())}
                 
@@ -200,6 +211,7 @@ class SmartHiveSystem:
 
                 if self.sensor_events["sound"].is_set():
                     payload["sound_db"] = self.sound_sensor.get_db_level()
+                    payload["sound_freq"] = self.sound_sensor.get_dominant_frequency()
                 
                 if len(payload) > 1: # Only publish if there's data
                     self.mqtt_client.publish(config.TOPIC_TELEMETRY, json.dumps(payload), qos=1)
@@ -214,7 +226,12 @@ class SmartHiveSystem:
         """Loop for performing AI vision detection and publishing results."""
         while self.is_running:
             try:
-                self.sensor_events["vision"].wait() # Allow pausing the vision task
+                # Wait until vision is enabled (blocks when toggled off)
+                self.sensor_events["vision"].wait()
+                
+                if not self.is_running:
+                    break
+                
                 frame, (box, confidence) = self.vision_processor.capture_and_process_frame()
                 
                 if box is not None and confidence is not None:

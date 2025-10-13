@@ -19,9 +19,9 @@
             <div class="linear-gauge-container">
                 <div class="gauge-bar" id="temp-bar"></div>
                 <div class="gauge-labels">
-                    <span>&lt; 32°C</span>
-                    <span>32-36°C</span>
-                    <span>&gt; 36°C</span>
+                    <span>28°C</span>
+                    <span>33-36°C</span>
+                    <span>41°C</span>
                 </div>
             </div>
             <p class="status-text">Status: <span id="temp-status">--</span></p>
@@ -36,9 +36,9 @@
             <div class="linear-gauge-container">
                 <div class="gauge-bar" id="hum-bar"></div>
                 <div class="gauge-labels">
-                    <span>&lt; 50%</span>
+                    <span>40%</span>
                     <span>50-70%</span>
-                    <span>&gt; 70%</span>
+                    <span>80%</span>
                 </div>
             </div>
             <p class="status-text">Status: <span id="hum-status">--</span></p>
@@ -76,7 +76,7 @@
         <!-- AI Vision Card -->
         <div class="card" id="video-card">
             <h2>AI Vision - Live Feed</h2>
-            <img src="http://127.0.0.1:5001/video_feed" width="100%" alt="Live video feed from the hive.">
+            <img src="{{ url_for('video_feed') }}" width="100%" alt="Live video feed from the hive.">
             <div class="ai-status">
                 <span>AI Status: <strong id="ai-status-text">--</strong></span>
                 <span>Last Snapshot: <strong id="ai-snapshot-time">--</strong></span>

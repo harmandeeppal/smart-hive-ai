@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         temp: { val: document.getElementById('temp-value'), bar: document.querySelector('#temp-bar'), status: document.getElementById('temp-status'), action: document.getElementById('temp-action') },
         hum: { val: document.getElementById('hum-value'), bar: document.querySelector('#hum-bar'), status: document.getElementById('hum-status'), action: document.getElementById('hum-action') },
         vib: { val: document.getElementById('vib-value'), magnitude: document.querySelector('#vib-magnitude'), trend: document.getElementById('vib-trend'), status: document.getElementById('vib-status'), action: document.getElementById('vib-action') },
-        sound: { val: document.getElementById('sound-value'), volume: document.querySelector('#sound-volume'), status: document.getElementById('sound-status'), action: document.getElementById('sound-action') },
+        sound: { val: document.getElementById('sound-value'), volume: document.querySelector('#sound-volume'), frequency: document.querySelector('#sound-frequency'), status: document.getElementById('sound-status'), action: document.getElementById('sound-action') },
         ai: { status: document.getElementById('ai-status-text'), snapshotTime: document.getElementById('ai-snapshot-time') }
     };
 
@@ -21,15 +21,28 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('telemetry_update', data => {
         console.log('Received telemetry:', data);
         updateTimestamp(data.timestamp);
-        updateTemperature(data.temperature);
-        updateHumidity(data.humidity);
-        updateVibration(data.vibration_rms);
-        updateSound(data.sound_db);
+        
+        // Only update if sensor is enabled
+        if (sensorStates.temperature && data.temperature !== undefined) {
+            updateTemperature(data.temperature);
+        }
+        if (sensorStates.humidity && data.humidity !== undefined) {
+            updateHumidity(data.humidity);
+        }
+        if (sensorStates.vibration && data.vibration_rms !== undefined) {
+            updateVibration(data.vibration_rms);
+        }
+        if (sensorStates.sound && (data.sound_db !== undefined || data.sound_freq !== undefined)) {
+            updateSound(data.sound_db, data.sound_freq);
+        }
     });
 
     socket.on('vision_update', data => {
         console.log('Received vision data:', data);
-        updateAiStatus(data);
+        // Only update if vision is enabled
+        if (sensorStates.vision) {
+            updateAiStatus(data);
+        }
     });
 
     // --- UI UPDATE FUNCTIONS ---
@@ -41,58 +54,76 @@ document.addEventListener('DOMContentLoaded', () => {
         if (temp === undefined || temp === null) return;
         elements.temp.val.textContent = `${temp.toFixed(1)} °C`;
         let status, action, percent;
-        if (temp <= 32) { 
-            status = 'Too Cold'; 
-            action = 'LOW TEMP ALERT: Investigate colony strength or insulation.'; 
-            percent = (temp / 32) * 33; 
-        } else if (temp >= 37) { 
-            status = 'Too Hot'; 
-            action = 'HIGH TEMP ALERT: Consider ventilation or shade.'; 
-            percent = 67 + ((temp - 37) / 13) * 33; // Adjusted range
+        
+        // Bar range: 28°C to 41°C (optimal 33-36°C ±5°C)
+        const TEMP_MIN = 28;
+        const TEMP_MAX = 41;
+        const TEMP_OPTIMAL_MIN = 33;
+        const TEMP_OPTIMAL_MAX = 36;
+        
+        if (temp < TEMP_OPTIMAL_MIN) { 
+            status = '❄️ Too Cold'; 
+            action = 'LOW TEMP ALERT: Check food stores (honey/pollen). Install entrance reducer. Consider external insulation.'; 
+        } else if (temp > TEMP_OPTIMAL_MAX) { 
+            status = '☀️ Too Hot'; 
+            action = 'HIGH TEMP ALERT: Open entrance fully. Prop outer cover for ventilation. Provide shade cloth.'; 
         } else { 
-            status = 'Optimal'; 
+            status = '✓ Optimal'; 
             action = 'None required.'; 
-            percent = 33 + ((temp - 32) / 5) * 34; // Adjusted range
         }
+        
+        // Calculate position on bar (0-100%)
+        percent = ((temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)) * 100;
+        percent = Math.min(100, Math.max(0, percent));
+        
         elements.temp.status.textContent = status;
         elements.temp.action.textContent = action;
-        elements.temp.bar.style.setProperty('--marker-pos', `${Math.min(100, Math.max(0, percent))}%`);
+        elements.temp.bar.style.setProperty('--marker-pos', `${percent}%`);
     }
 
     function updateHumidity(hum) {
         if (hum === undefined || hum === null) return;
         elements.hum.val.textContent = `${hum.toFixed(1)} %`;
         let status, action, percent;
-        if (hum <= 45) { 
-            status = 'Too Dry'; 
-            action = 'LOW HUMIDITY ALERT: Consider supplemental water.'; 
-            percent = (hum / 45) * 33; 
-        } else if (hum >= 75) { 
-            status = 'Too Wet'; 
-            action = 'HIGH HUMIDITY ALERT: Check for moisture and poor ventilation.'; 
-            percent = 67 + ((hum - 75) / 25) * 33; // Adjusted range
+        
+        // Bar range: 40% to 80% (optimal 50-70% ±10%)
+        const HUM_MIN = 40;
+        const HUM_MAX = 80;
+        const HUM_OPTIMAL_MIN = 50;
+        const HUM_OPTIMAL_MAX = 70;
+        
+        if (hum < HUM_OPTIMAL_MIN) { 
+            status = '💦 Too Dry'; 
+            action = 'LOW HUMIDITY ALERT: Provide water source with landing spots (pebbles). Check syrup concentration.'; 
+        } else if (hum > HUM_OPTIMAL_MAX) { 
+            status = '💧 Too Wet'; 
+            action = 'HIGH HUMIDITY ALERT: Clear all vents. Check roof/bottom board for water trapping. Improve ventilation.'; 
         } else { 
-            status = 'Optimal'; 
+            status = '✓ Optimal'; 
             action = 'None required.'; 
-            percent = 33 + ((hum - 45) / 30) * 34; // Adjusted range
         }
+        
+        // Calculate position on bar (0-100%)
+        percent = ((hum - HUM_MIN) / (HUM_MAX - HUM_MIN)) * 100;
+        percent = Math.min(100, Math.max(0, percent));
+        
         elements.hum.status.textContent = status;
         elements.hum.action.textContent = action;
-        elements.hum.bar.style.setProperty('--marker-pos', `${Math.min(100, Math.max(0, percent))}%`);
+        elements.hum.bar.style.setProperty('--marker-pos', `${percent}%`);
     }
 
     function updateVibration(rms) {
         if (rms === undefined || rms === null) return;
         elements.vib.val.textContent = `${rms.toFixed(4)} RMS`;
         let status, action;
-        if (rms > 0.15) { // Threshold for 'Agitated'
-            status = 'Agitation Alert'; 
-            action = 'Hive disturbed or under attack.'; 
-        } else if (rms < 0.02) { // Threshold for 'Low Activity'
-            status = 'Low Activity Alert';
-            action = 'Possible cluster immobilization or weakness.';
+        if (rms > 0.15) {
+            status = '🚨 Agitation Alert'; 
+            action = 'Hive disturbed or under attack. Check visual feed for pests. Avoid opening hive for 2+ hours.'; 
+        } else if (rms < 0.02) {
+            status = '🛑 Low Activity Alert';
+            action = 'Possible cluster immobilization. Check weather history. Inspect for weakness or pesticide exposure.';
         } else {
-            status = 'Normal Activity';
+            status = '✓ Normal Activity';
             action = 'None required.';
         }
         elements.vib.status.textContent = status;
@@ -104,13 +135,47 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.vib.trend.textContent = generateSparkline(vibrationHistory);
     }
 
-    function updateSound(db) {
+    function updateSound(db, freq) {
         if (db === undefined || db === null) return;
+        
         elements.sound.val.textContent = `${db.toFixed(1)} dB`;
-        // NOTE: This is a placeholder. Real implementation requires frequency analysis.
-        elements.sound.status.textContent = 'Queen Status Alert'; 
-        elements.sound.action.textContent = 'Abnormal sound detected. Schedule inspection.';
-        elements.sound.volume.style.setProperty('--magnitude', `${Math.min(100, ((db + 60) / 80) * 100)}%`); // Offset for better visualization of dB
+        
+        // Volume bar (40-70 dB range for normal hive sounds)
+        const volumePercent = Math.min(100, Math.max(0, ((db - 40) / 30) * 100));
+        elements.sound.volume.style.setProperty('--magnitude', `${volumePercent}%`);
+        
+        // Frequency bar (200-600 Hz range for bee sounds)
+        if (freq !== undefined && freq !== null) {
+            const freqPercent = Math.min(100, Math.max(0, ((freq - 200) / 400) * 100));
+            elements.sound.frequency.style.setProperty('--magnitude', `${freqPercent}%`);
+            
+            // Intelligent status and action based on frequency analysis
+            if (freq >= 450 && freq <= 600) {
+                // Swarming signals (piping/quacking ~500Hz)
+                elements.sound.status.textContent = '🏃 SWARM PREDICTION ALERT';
+                elements.sound.action.textContent = 'Imminent swarming. Schedule colony split immediately to relieve congestion during swarming season.';
+            } else if (freq >= 350 && freq < 450) {
+                // Queenless roar (high-pitched distressed sound)
+                elements.sound.status.textContent = '👑 QUEEN STATUS ALERT';
+                elements.sound.action.textContent = 'Abnormal sound detected. Check brood frames for eggs/larvae. Introduce new queen or frame of young brood if queenless.';
+            } else if (freq < 150 && db < 42) {
+                // Sudden silence (dramatic drop in acoustic energy)
+                elements.sound.status.textContent = '💀 DISTRESS/MORTALITY ALERT';
+                elements.sound.action.textContent = 'Sudden silence. Check for local pesticide use. Inspect for dead/paralyzed bees at entrance.';
+            } else if (freq >= 200 && freq < 350) {
+                // Normal healthy hum (200-300 Hz)
+                elements.sound.status.textContent = '✓ Healthy Hum';
+                elements.sound.action.textContent = 'None required.';
+            } else {
+                // Edge cases
+                elements.sound.status.textContent = 'Monitoring';
+                elements.sound.action.textContent = 'Continue observation.';
+            }
+        } else {
+            // Fallback if frequency is not available
+            elements.sound.status.textContent = 'Volume Only';
+            elements.sound.action.textContent = 'Frequency analysis unavailable.';
+        }
     }
 
     function updateAiStatus(data) {

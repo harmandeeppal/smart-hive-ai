@@ -6,4 +6,5 @@ opencv-python
 adafruit-circuitpython-bme280
 adafruit-circuitpython-lis3dh
 sounddevice
+scipy
 tflite-runtime

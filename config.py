@@ -37,7 +37,36 @@ TELEMETRY_INTERVAL_SECONDS = 5
 # How often to run the AI vision processing loop
 VISION_LOOP_INTERVAL_SECONDS = 1
 # How often to upload a general snapshot to S3
-S3_SNAPSHOT_INTERVAL_SECONDS = 300 # 5 minutes
+S3_SNAPSHOT_INTERVAL_SECONDS = 120 # 2 minutes
+
+# -----------------------------------------------------------------------------
+# --- Hardware Pin Configuration (SunFounder Raspberry Pi Sensor Kit) ---
+# -----------------------------------------------------------------------------
+# I2C Bus Configuration
+I2C_BUS = 1  # Default I2C bus on Raspberry Pi (GPIO pins: SCL=Pin 5, SDA=Pin 3)
+
+# BME280 Temperature & Humidity Sensor I2C Address
+# Common addresses: 0x77 (default) or 0x76
+# To check your sensor's address, run: sudo i2cdetect -y 1
+BME280_ADDRESS = 0x77
+
+# LIS3DH Accelerometer/Vibration Sensor I2C Address
+# Common addresses: 0x18 (default) or 0x19
+# To check your sensor's address, run: sudo i2cdetect -y 1
+LIS3DH_ADDRESS = 0x18
+
+# Camera Configuration
+# Options: "USB" for Logitech USB Camera, "PICAMERA" for Raspberry Pi Camera Module
+CAMERA_TYPE = "USB"
+CAMERA_DEVICE_INDEX = 0  # Usually 0 for the first USB camera
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+# Microphone Configuration
+# For Samson USB Microphone or system default
+MICROPHONE_SAMPLE_RATE = 44100  # Hz
+MICROPHONE_DURATION_MS = 100     # Milliseconds for dB sampling
+MICROPHONE_FREQ_DURATION_SEC = 1.0  # Seconds for frequency analysis (needs longer sample)
 
 
 # --- Application Settings ---

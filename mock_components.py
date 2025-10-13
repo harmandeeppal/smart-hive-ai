@@ -41,8 +41,24 @@ class MockINMP441:
         print("Initialized Mock INMP441 Sound Sensor.")
     
     def get_db_level(self):
+        """Simulate volume level in decibels (40-70 dB range for normal hive)."""
         # Simulate a baseline hive hum
         return round(52 + random.uniform(-3, 3), 1)
+    
+    def get_dominant_frequency(self):
+        """Simulate dominant frequency in Hz.
+        
+        Normal hive: 200-300 Hz (healthy hum)
+        Queenless roar: 350-450 Hz (high-pitched distress)
+        Swarming signals: 450-550 Hz (piping/quacking)
+        """
+        # Most of the time, simulate normal frequency
+        if random.random() < 0.8:  # 80% normal
+            return round(random.uniform(200, 320), 1)
+        elif random.random() < 0.9:  # 10% queenless roar
+            return round(random.uniform(350, 450), 1)
+        else:  # 10% swarming signals
+            return round(random.uniform(450, 550), 1)
 
 class MockCamera:
     """A mock Raspberry Pi Camera."""

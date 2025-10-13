@@ -6,23 +6,27 @@ import cv2
 import numpy as np
 import tflite_runtime.interpreter as tflite
 import sounddevice as sd
+from scipy.fft import fft, fftfreq
+import config
 
 class RealINMP441:
     """Interface for a real microphone using sounddevice."""
-    def __init__(self, sample_rate=44100, duration_ms=100):
-        self.sample_rate = sample_rate
-        self.duration_ms = duration_ms
+    def __init__(self, sample_rate=None, duration_ms=None):
+        self.sample_rate = sample_rate or config.MICROPHONE_SAMPLE_RATE
+        self.duration_ms = duration_ms or config.MICROPHONE_DURATION_MS
+        self.freq_duration_sec = config.MICROPHONE_FREQ_DURATION_SEC
         self.is_working = True
         try:
             # Check if any microphone is available
             if len(sd.query_devices(kind='input')) == 0:
                 raise RuntimeError("No microphone found.")
-            print("Successfully initialized Real INMP441 (Microphone).")
+            print(f"Successfully initialized Real INMP441 (Microphone) at {self.sample_rate} Hz.")
         except Exception as e:
             print(f"Error initializing Real INMP441: {e}")
             self.is_working = False
 
     def get_db_level(self):
+        """Get the volume level in decibels."""
         if not self.is_working:
             return -100.0 # Return a very low dB value on error
 
@@ -37,18 +41,60 @@ class RealINMP441:
             # Convert RMS to dB. Add a small epsilon to avoid log(0).
             db = 20 * np.log10(rms + 1e-12)
             
-            return db
+            # Scale to typical range (40-70 dB for normal hive sounds)
+            # Adjust offset based on your microphone's sensitivity
+            db = max(40.0, min(70.0, db + 80))  # Offset adjustment
+            
+            return float(db)
         except Exception as e:
             print(f"Error reading from microphone: {e}")
             return -100.0
 
+    def get_dominant_frequency(self):
+        """Get the dominant frequency in Hz using FFT analysis."""
+        if not self.is_working:
+            return 0.0
+
+        try:
+            # Record audio for frequency analysis (need longer duration for better resolution)
+            recording = sd.rec(int(self.freq_duration_sec * self.sample_rate), samplerate=self.sample_rate, channels=1, dtype='float32')
+            sd.wait()
+
+            # Flatten the recording to 1D array
+            audio_data = recording.flatten()
+
+            # Apply FFT (Fast Fourier Transform)
+            fft_values = fft(audio_data)
+            fft_freqs = fftfreq(len(audio_data), 1 / self.sample_rate)
+
+            # Get positive frequencies only
+            positive_freqs = fft_freqs[:len(fft_freqs)//2]
+            fft_magnitudes = np.abs(fft_values[:len(fft_values)//2])
+
+            # Find the dominant frequency (highest magnitude)
+            # Focus on bee-relevant range: 100-1000 Hz
+            relevant_range = (positive_freqs >= 100) & (positive_freqs <= 1000)
+            if np.any(relevant_range):
+                relevant_freqs = positive_freqs[relevant_range]
+                relevant_mags = fft_magnitudes[relevant_range]
+                dominant_idx = np.argmax(relevant_mags)
+                dominant_freq = relevant_freqs[dominant_idx]
+            else:
+                dominant_freq = 0.0
+
+            return float(dominant_freq)
+        except Exception as e:
+            print(f"Error analyzing frequency: {e}")
+            return 0.0
+
 class RealBME280:
     """Interface for the real BME280 sensor."""
-    def __init__(self):
+    def __init__(self, address=None):
         try:
             i2c = board.I2C()
-            self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c)
-            print("Successfully initialized Real BME280 Sensor.")
+            address = address or config.BME280_ADDRESS
+            self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=address)
+            print(f"Successfully initialized Real BME280 Sensor at address 0x{address:02X}.")
         except Exception as e:
             print(f"Error initializing Real BME280: {e}")
             self.sensor = None
@@ -60,11 +106,12 @@ class RealBME280:
 
 class RealLIS3DH:
     """Interface for the real LIS3DH sensor."""
-    def __init__(self):
+    def __init__(self, address=None):
         try:
             i2c = board.I2C()
-            self.sensor = adafruit_lis3dh.LIS3DH_I2C(i2c)
-            print("Successfully initialized Real LIS3DH Sensor.")
+            address = address or config.LIS3DH_ADDRESS
+            self.sensor = adafruit_lis3dh.LIS3DH_I2C(i2c, address=address)
+            print(f"Successfully initialized Real LIS3DH Sensor at address 0x{address:02X}.")
         except Exception as e:
             print(f"Error initializing Real LIS3DH: {e}")
             self.sensor = None
@@ -79,9 +126,11 @@ class RealLIS3DH:
 class RealVisionProcessor:
     def __init__(self, model_path):
         try:
-            self.camera = cv2.VideoCapture(0)
-            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            # Use camera configuration from config
+            camera_index = config.CAMERA_DEVICE_INDEX if config.CAMERA_TYPE == "USB" else 0
+            self.camera = cv2.VideoCapture(camera_index)
+            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
+            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
             
             self.interpreter = tflite.Interpreter(model_path=model_path)
             self.interpreter.allocate_tensors()
@@ -93,9 +142,11 @@ class RealVisionProcessor:
             self.input_width = self.input_details[0]['shape'][2]
 
             self.frame = None # To store the latest frame
-            print("Successfully initialized Real Vision Processor.")
+            print(f"Successfully initialized Real Vision Processor with {config.CAMERA_TYPE} camera.")
         except Exception as e:
-            # ... (error handling) ...
+            print(f"Error initializing Real Vision Processor: {e}")
+            self.camera = None
+            self.interpreter = None
 
     def capture_and_process_frame(self):
         if not self.camera or not self.camera.isOpened():
