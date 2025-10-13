@@ -26,6 +26,7 @@ class SmartHiveSystem:
 
         self.sensor_events = {
             "temperature": threading.Event(),
+            "humidity": threading.Event(),  # ✨ NEW: Separate toggle for humidity
             "vibration": threading.Event(),
             "sound": threading.Event(),
             "vision": threading.Event() # Added for consistency
@@ -72,6 +73,22 @@ class SmartHiveSystem:
         else:
             self.s3_client = None
         print("AWS clients initialized.")
+
+        # Initialize DynamoDB client
+        # ✨ FIXED: Removed mock environment check to allow testing on laptop
+        if config.ENABLE_DYNAMODB:
+           try:
+               import boto3
+               self.dynamodb = boto3.resource('dynamodb', region_name=config.AWS_REGION)
+               self.table = self.dynamodb.Table(config.DYNAMODB_TABLE)
+               print(f"✅ DynamoDB table '{config.DYNAMODB_TABLE}' initialized successfully.")
+           except Exception as e:
+               print(f"❌ Error initializing DynamoDB: {e}")
+               print(f"   Make sure AWS credentials are configured (see troubleshooting guide)")
+               self.table = None
+        else:
+           self.table = None
+           print("⚠️  DynamoDB disabled (ENABLE_DYNAMODB = False)")
 
     def on_mqtt_connect(self, client, userdata, flags, rc):
         """Callback for when the MQTT client connects."""
@@ -183,6 +200,64 @@ class SmartHiveSystem:
                     print(f"QUEEN DETECTED! Successfully uploaded {filename} to S3.")
         except Exception as e:
             print(f"An error occurred in the detection snapshot upload: {e}")
+
+    def write_to_dynamodb(self, telemetry_data):
+       """Writes telemetry data to AWS DynamoDB table.
+       
+       Args:
+           telemetry_data (dict): Dictionary containing sensor readings and timestamp
+       
+       Data Format:
+           {
+               'timestamp': 1697123456,
+               'temperature': 34.5,
+               'humidity': 58.2,
+               'vibration_rms': 0.0521,
+               'sound_db': 52.3,
+               'sound_freq': 265.0
+           }
+       """
+       if not self.table:
+           return
+       
+       try:
+           # Import Decimal for DynamoDB compatibility
+           from decimal import Decimal
+           
+           # Prepare item for DynamoDB
+           item = {
+               'device_id': config.THING_NAME,  # Partition key (String)
+               'timestamp': int(telemetry_data.get('timestamp', time.time()))  # Sort key (Number)
+           }
+           
+           # Add all sensor readings that are present
+           # ✨ FIX: Convert float to Decimal for DynamoDB
+           if 'temperature' in telemetry_data:
+               item['temperature'] = Decimal(str(round(float(telemetry_data['temperature']), 2)))
+           
+           if 'humidity' in telemetry_data:
+               item['humidity'] = Decimal(str(round(float(telemetry_data['humidity']), 2)))
+           
+           if 'vibration_rms' in telemetry_data:
+               item['vibration_rms'] = Decimal(str(round(float(telemetry_data['vibration_rms']), 4)))
+           
+           if 'sound_db' in telemetry_data:
+               item['sound_db'] = Decimal(str(round(float(telemetry_data['sound_db']), 1)))
+           
+           if 'sound_freq' in telemetry_data:
+               item['sound_freq'] = Decimal(str(round(float(telemetry_data['sound_freq']), 1)))
+           
+           # Write to DynamoDB
+           response = self.table.put_item(Item=item)
+           
+           # Log success with timestamp
+           from datetime import datetime
+           readable_time = datetime.fromtimestamp(item['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+           print(f"✅ DynamoDB: Wrote record at {readable_time} ({len(item)-2} sensors)")
+           
+       except Exception as e:
+           print(f"❌ DynamoDB write error: {e}")
+           # Don't crash the whole system if database write fails
     
     def telemetry_loop(self):
         """--- ENHANCEMENT: Unified loop for all telemetry sensors ---"""
@@ -190,6 +265,7 @@ class SmartHiveSystem:
             # Wait until at least one sensor is enabled before continuing
             while self.is_running and not any([
                 self.sensor_events["temperature"].is_set(),
+                self.sensor_events["humidity"].is_set(),  # ✨ Added humidity check
                 self.sensor_events["vibration"].is_set(),
                 self.sensor_events["sound"].is_set()
             ]):
@@ -201,10 +277,17 @@ class SmartHiveSystem:
             try:
                 payload = {"timestamp": int(time.time())}
                 
-                if self.sensor_events["temperature"].is_set():
+                # ✨ FIX: Read BME280 sensor if EITHER temperature OR humidity is enabled
+                # BME280 returns both values in one call, but we publish them independently
+                if self.sensor_events["temperature"].is_set() or self.sensor_events["humidity"].is_set():
                     temp, humidity = self.temp_humidity_sensor.get_temp_humidity()
-                    payload["temperature"] = temp
-                    payload["humidity"] = humidity
+                    
+                    # Only add to payload if that specific sensor is enabled
+                    if self.sensor_events["temperature"].is_set():
+                        payload["temperature"] = temp
+                    
+                    if self.sensor_events["humidity"].is_set():
+                        payload["humidity"] = humidity
                 
                 if self.sensor_events["vibration"].is_set():
                     payload["vibration_rms"] = self.vibration_sensor.get_rms_acceleration()
@@ -216,6 +299,9 @@ class SmartHiveSystem:
                 if len(payload) > 1: # Only publish if there's data
                     self.mqtt_client.publish(config.TOPIC_TELEMETRY, json.dumps(payload), qos=1)
                     print(f"Published Telemetry: {payload}")
+                    
+                    # Write to DynamoDB (for historical data)
+                    self.write_to_dynamodb(payload)
                     
             except Exception as e:
                 print(f"Error in telemetry loop: {e}")

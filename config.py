@@ -72,3 +72,8 @@ MICROPHONE_FREQ_DURATION_SEC = 1.0  # Seconds for frequency analysis (needs long
 # --- Application Settings ---
 # Set to False when deploying on the Raspberry Pi
 IS_MOCK_ENVIRONMENT = True
+
+# --- AWS DynamoDB Settings ---
+DYNAMODB_TABLE = "SmartHiveTelemetry"
+ENABLE_DYNAMODB = True  # Set to False to disable database logging
+AWS_REGION = "ap-southeast-2"  # CHANGE THIS to match your DynamoDB table region

@@ -16,6 +16,8 @@ services:
       - "5001:5001"
     volumes:
       - .:/app
+      # ✨ NEW: Mount AWS credentials for DynamoDB access
+      - ~/.aws:/root/.aws:ro
 
   dashboard:
     build:
