@@ -1,77 +1,143 @@
+"""
+Smart Hive AI - Dashboard Application
+
+Description:
+    Web-based dashboard for real-time beehive monitoring and visualization.
+    Provides live sensor data display, video streaming, and sensor control
+    through a responsive web interface using Flask and Socket.IO.
+
+Author: Smart Hive AI Team
+Created: 2024
+Last Modified: October 2025
+
+Dependencies:
+    - Flask: Web application framework
+    - Flask-SocketIO: WebSocket support for real-time updates
+    - paho-mqtt: MQTT client for subscribing to telemetry data
+    - requests: HTTP client for video stream proxying
+
+Features:
+    - Real-time telemetry data visualization
+    - Live video streaming with AI detection overlays
+    - Interactive sensor enable/disable controls
+    - WebSocket-based data updates
+    - MQTT integration with AWS IoT Core
+
+Routes:
+    - /: Main dashboard page
+    - /video_feed: Video stream proxy from edge application
+    - /toggle_sensor: Sensor control endpoint
+
+Usage:
+    Run as part of Docker Compose stack or standalone:
+    python dashboard_app.py
+    
+    Access at: http://localhost:5000
+"""
+
 import json
 import ssl
-import time # <--- FIX 1: Added missing 'time' import
+import time
 import threading
 import requests
 from flask import Response
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-# Import the standard Paho MQTT client for modern usage
-from paho.mqtt import client as mqtt_client 
+from paho.mqtt import client as mqtt_client
 
-# Import the main config
+# Import main configuration from parent directory
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import config
 
-# --- Flask App Initialization ---
+# Initialize Flask application
 app = Flask(__name__)
-app.config['SECRET_KEY'] = config.SECRET_KEY 
-# Use 'gevent' or 'eventlet' for production, 'threading' is fine for development
+app.config['SECRET_KEY'] = config.SECRET_KEY
 socketio = SocketIO(app, async_mode='threading')
 
-# --- MQTT Client Setup ---
-# FIX 4: Changed to VERSION2 (or simply removed the argument)
+# Initialize MQTT client for telemetry subscription
 mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id="SmartHive_Dashboard")
 
-# --- Video Streaming Proxy ---
+
 @app.route('/video_feed')
 def video_feed():
-    """Proxies the video stream from the edge-app container."""
+    """
+    Proxy video stream from edge application container.
+    
+    Forwards the MJPEG video stream from the edge-app container running
+    on port 5001 to dashboard clients. Handles connection errors gracefully.
+    
+    Returns:
+        Response: Streaming response with video frames or error message
+    """
     try:
-        # The URL of the video stream from the other Docker container
+        # URL of the video stream from edge application container
         video_url = "http://edge-app:5001/video_feed"
         
-        # Use requests to get the stream. stream=True is crucial.
+        # Stream video with chunked transfer encoding
         resp = requests.get(video_url, stream=True, timeout=10)
-        # Check if the request was successful
+        
         if resp.status_code == 200:
-            # Return a streaming response that forwards the headers and content
+            # Forward streaming response to client
             return Response(resp.iter_content(chunk_size=1024), 
                             content_type=resp.headers['Content-Type'],
                             status=resp.status_code)
         else:
-            # If the edge app is not ready or there's an error, return a placeholder
+            # Handle non-200 status codes
             error_message = f"Error fetching stream from edge-app: Status {resp.status_code}"
             return Response(error_message, mimetype='text/plain')
     except requests.exceptions.RequestException as e:
-        # Handle connection errors (e.g., if the edge-app is not running)
+        # Handle connection errors (edge-app not running, network issues)
         error_message = f"Could not connect to video stream at {video_url}: {e}"
         return Response(error_message, mimetype='text/plain')
 
-# --- MQTT Client Logic ---
 
 def setup_mqtt():
-    """Configures and connects the MQTT client."""
+    """
+    Configure and connect MQTT client to AWS IoT Core.
     
-    # Callback uses the VERSION2 signature (client, userdata, flags, reason_code, properties)
+    Sets up TLS connection with AWS IoT Core and subscribes to telemetry
+    and vision topics. Implements callbacks for connection and message handling.
+    Runs MQTT network loop in background thread.
+    """
+    
     def on_connect(client, userdata, flags, rc, properties=None):
+        """
+        Callback for MQTT connection establishment.
+        
+        Args:
+            client: MQTT client instance
+            userdata: User data (unused)
+            flags: Connection flags
+            rc: Connection result code
+            properties: Connection properties (MQTT v5)
+        """
         if rc == 0:
             print("Dashboard MQTT client connected successfully.")
-            # Subscribe to topics upon connection
+            # Subscribe to telemetry and vision topics
             client.subscribe(config.TOPIC_TELEMETRY)
             client.subscribe(config.TOPIC_VISION)
         else:
             print(f"Dashboard MQTT failed to connect, reason code {rc}")
 
     def on_message(client, userdata, msg):
-        """Callback for when a message is received from a subscribed topic."""
+        """
+        Callback for incoming MQTT messages.
+        
+        Parses JSON payload and emits data to connected WebSocket clients
+        via Socket.IO for real-time dashboard updates.
+        
+        Args:
+            client: MQTT client instance
+            userdata: User data (unused)
+            msg: MQTT message with topic and payload
+        """
         print(f"Received message on topic: {msg.topic}")
         try:
-            # Note: SocketIO.emit is thread-safe and can be called directly from this MQTT thread
             payload = json.loads(msg.payload.decode())
             
+            # Route message to appropriate WebSocket event
             if msg.topic == config.TOPIC_TELEMETRY:
                 socketio.emit('telemetry_update', payload)
             elif msg.topic == config.TOPIC_VISION:
@@ -81,64 +147,80 @@ def setup_mqtt():
         except Exception as e:
             print(f"An error occurred in on_message: {e}")
             
+    # Assign callbacks
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
     
-    # Secure connection setup
-    mqtt_client.tls_set(ca_certs=config.CA_PATH, certfile=config.CERT_PATH, keyfile=config.KEY_PATH,
-                      cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS)
+    # Configure TLS connection with AWS IoT certificates
+    mqtt_client.tls_set(ca_certs=config.CA_PATH, 
+                       certfile=config.CERT_PATH, 
+                       keyfile=config.KEY_PATH,
+                       cert_reqs=ssl.CERT_REQUIRED, 
+                       tls_version=ssl.PROTOCOL_TLS)
     
-    # Connect and start the network loop
+    # Connect to AWS IoT Core MQTT broker
     mqtt_client.connect(config.AWS_ENDPOINT, 8883, 60)
     
-    # FIX 3: Start the loop in a background thread and return control.
-    mqtt_client.loop_start() 
+    # Start MQTT network loop in background thread
+    mqtt_client.loop_start()
 
-# --- Socket.IO Event Handlers ---
+
 @socketio.on('connect')
 def handle_connect():
+    """Handle WebSocket client connection event."""
     print('Client connected to dashboard')
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    """Handle WebSocket client disconnection event."""
     print('Client disconnected from dashboard')
+
 
 @socketio.on('toggle_sensor')
 def handle_toggle_sensor(data):
-    """Handles toggle commands and publishes them to the control topic."""
+    """
+    Handle sensor toggle commands from dashboard UI.
+    
+    Publishes sensor control commands to MQTT control topic for
+    edge application to process.
+    
+    Args:
+        data (dict): Toggle command with sensor name and state
+                    Example: {"sensor": "temperature", "enabled": true}
+    """
     print(f"Received sensor toggle command: {data}")
     
-    # FIX 2: Thread-Safe Publishing. Since we are using loop_start()
-    # it is now safer to use the main client for publishing, but for
-    # *absolute* robustness, consider creating a small, temporary
-    # client here if publishing fails unexpectedly. For simplicity
-    # with loop_start(), we continue to use the main client.
-    
+    # Publish control command to MQTT control topic
+    # Note: Publishing is thread-safe when using loop_start()
     control_payload = json.dumps({"sensor": data['sensor'], "state": data['state']})
-    # The publish call is generally thread-safe if loop_start() is used.
     result = mqtt_client.publish("hive/control", control_payload, qos=1)
-    # The result.rc indicates success/failure of queuing the message, not delivery.
     print(f"Published control message with result: {result}")
 
 
-# --- Flask Routes ---
 @app.route('/')
 def index():
-    """Serves the main dashboard page."""
+    """
+    Serve main dashboard page.
+    
+    Returns:
+        str: Rendered HTML template for dashboard interface
+    """
     return render_template('index.html')
 
+
 if __name__ == '__main__':
+    """
+    Application entry point.
+    
+    Initializes MQTT client connection and starts Flask-SocketIO server
+    with WebSocket support for real-time updates.
+    """
     print("Setting up MQTT client...")
-    # Now we call setup_mqtt directly in the main thread.
-    # It handles its own threading with loop_start().
-    setup_mqtt() 
+    setup_mqtt()
     
     print("Starting Flask-SocketIO server...")
-    # NOTE: The debug=True setting in socketio.run can interfere with threading.
-    # use_reloader=False is good, as it prevents the code from running twice.
+    # Run Socket.IO server on all interfaces, port 5000
+    # use_reloader=False prevents double execution in debug mode
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, 
                  use_reloader=False, allow_unsafe_werkzeug=True)
-
-    # Optional: Add cleanup on shutdown if you need to gracefully stop the MQTT client
-    # mqtt_client.loop_stop()
-    # mqtt_client.disconnect()
