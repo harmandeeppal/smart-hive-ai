@@ -294,6 +294,7 @@ class SmartHiveSystem:
                nz_time = utc_time.astimezone(nz_tz)
            
            item['timestamp_nz'] = nz_time.strftime('%Y-%m-%d %H:%M:%S %Z')  # e.g., "2025-10-15 18:25:40 NZDT"
+           print(f"📅 Added timestamp_nz: {item['timestamp_nz']}")  # Debug log
            
            # Add all sensor readings that are present
            # ✨ FIX: Convert float to Decimal for DynamoDB
@@ -317,13 +318,22 @@ class SmartHiveSystem:
            
            # Log success with timestamp in NZ time
            from datetime import datetime
-           from zoneinfo import ZoneInfo
-           nz_time = datetime.fromtimestamp(item['timestamp'], tz=ZoneInfo('Pacific/Auckland'))
-           readable_time = nz_time.strftime('%Y-%m-%d %H:%M:%S %Z')
-           print(f"✅ DynamoDB: Wrote record at {readable_time} ({len(item)-2} sensors)")
+           try:
+               from zoneinfo import ZoneInfo
+               nz_time_log = datetime.fromtimestamp(item['timestamp'], tz=ZoneInfo('Pacific/Auckland'))
+           except (ImportError, Exception):
+               import pytz
+               nz_tz = pytz.timezone('Pacific/Auckland')
+               utc_time = datetime.utcfromtimestamp(item['timestamp']).replace(tzinfo=pytz.UTC)
+               nz_time_log = utc_time.astimezone(nz_tz)
+           
+           readable_time = nz_time_log.strftime('%Y-%m-%d %H:%M:%S %Z')
+           print(f"✅ DynamoDB: Wrote record at {readable_time} ({len(item)-3} sensors)")
            
        except Exception as e:
            print(f"❌ DynamoDB write error: {e}")
+           import traceback
+           traceback.print_exc()
            # Don't crash the whole system if database write fails
     
     def telemetry_loop(self):
