@@ -1,6 +1,7 @@
 # real_components.py
 import board
-import adafruit_bme280
+import busio
+import adafruit_bme280.advanced as adafruit_bme280
 import adafruit_lis3dh
 import cv2
 import numpy as np
@@ -12,6 +13,7 @@ import config
 class RealINMP441:
     """Interface for a real microphone using sounddevice."""
     def __init__(self, sample_rate=None, duration_ms=None):
+        
         self.sample_rate = sample_rate or config.MICROPHONE_SAMPLE_RATE
         self.duration_ms = duration_ms or config.MICROPHONE_DURATION_MS
         self.freq_duration_sec = config.MICROPHONE_FREQ_DURATION_SEC
@@ -91,7 +93,7 @@ class RealBME280:
     """Interface for the real BME280 sensor."""
     def __init__(self, address=None):
         try:
-            i2c = board.I2C()
+            i2c = busio.I2C(board.SCL, board.SDA)
             address = address or config.BME280_ADDRESS
             self.sensor = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=address)
             print(f"Successfully initialized Real BME280 Sensor at address 0x{address:02X}.")
@@ -129,8 +131,20 @@ class RealVisionProcessor:
             # Use camera configuration from config
             camera_index = config.CAMERA_DEVICE_INDEX if config.CAMERA_TYPE == "USB" else 0
             self.camera = cv2.VideoCapture(camera_index)
+            
+            # Check if camera opened successfully
+            if not self.camera.isOpened():
+                raise Exception(f"Failed to open camera at index {camera_index}")
+            
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
+            
+            # Test read a frame to verify camera is working
+            ret, test_frame = self.camera.read()
+            if not ret or test_frame is None:
+                raise Exception(f"Camera opened but failed to read test frame")
+            
+            print(f"Camera successfully captured test frame: {test_frame.shape}")
             
             self.interpreter = tflite.Interpreter(model_path=model_path)
             self.interpreter.allocate_tensors()
@@ -141,55 +155,93 @@ class RealVisionProcessor:
             self.input_height = self.input_details[0]['shape'][1]
             self.input_width = self.input_details[0]['shape'][2]
 
-            self.frame = None # To store the latest frame
+            self.frame = test_frame # Store the initial test frame
+            self.latest_detection = None  # Store latest detection result (box, confidence)
+            self.frame_counter = 0  # Counter for processing every Nth frame
+            
             print(f"Successfully initialized Real Vision Processor with {config.CAMERA_TYPE} camera.")
         except Exception as e:
             print(f"Error initializing Real Vision Processor: {e}")
             self.camera = None
             self.interpreter = None
 
-    def capture_and_process_frame(self):
+    def capture_and_process_frame(self, run_inference=True):
+        """
+        Capture a frame and optionally run AI inference.
+        
+        Args:
+            run_inference (bool): If True, runs AI detection. If False, just captures frame.
+        
+        Returns:
+            tuple: (frame, detection_result)
+                - frame: The captured (and possibly annotated) frame
+                - detection_result: (box, confidence) or (None, None)
+        """
         if not self.camera or not self.camera.isOpened():
-            return np.zeros((480, 640, 3), dtype=np.uint8)
+            return np.zeros((480, 640, 3), dtype=np.uint8), (None, None)
 
         ret, frame = self.camera.read()
         if not ret:
-            return np.zeros((480, 640, 3), dtype=np.uint8)
+            print("Warning: Failed to read frame from camera")
+            return np.zeros((480, 640, 3), dtype=np.uint8), (None, None)
         
-        # --- NEW: Full Inference Pipeline ---
-        # 1. Pre-process the frame
-        input_data = cv2.resize(frame, (self.input_width, self.input_height))
-        input_data = np.expand_dims(input_data, axis=0) # Add batch dimension
-
-        # 2. Set the tensor
-        self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
-
-        # 3. Run inference
-        self.interpreter.invoke()
-
-        # 4. Get results and post-process
-        boxes = self.interpreter.get_tensor(self.output_details[0]['index'])[0]
-        classes = self.interpreter.get_tensor(self.output_details[1]['index'])[0]
-        scores = self.interpreter.get_tensor(self.output_details[2]['index'])[0]
+        # If inference not requested, return raw frame
+        if not run_inference:
+            self.frame = frame
+            return frame, (None, None)
         
-        detection_result = (None, None)
+        try:
+            # --- Full Inference Pipeline ---
+            # 1. Pre-process the frame
+            input_data = cv2.resize(frame, (self.input_width, self.input_height))
+            input_data = np.expand_dims(input_data, axis=0) # Add batch dimension
 
-        # (Assuming Queen Bee is class 0, and you'll need a labels file)
-        for i in range(len(scores)):
-            if scores[i] > 0.5: # Confidence threshold
-                detection_result = (boxes[i], scores[i])
-                y_min, x_min, y_max, x_max = boxes[i]
-                
-                # Convert from normalized to pixel coordinates
-                (left, right, top, bottom) = (x_min * 640, x_max * 640, 
-                                              y_min * 480, y_max * 480)
-                
-                # Draw bounding box and label
-                cv2.rectangle(frame, (int(left), int(top)), (int(right), int(bottom)), (0, 255, 0), 2)
-                label = f"Queen: {int(scores[i]*100)}%"
-                cv2.putText(frame, label, (int(left), int(top) - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                break # Assume only one queen, take the highest score
+            # 2. Set the tensor
+            self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
 
-        self.frame = frame # Store the annotated frame
-        return self.frame, detection_result
+            # 3. Run inference
+            self.interpreter.invoke()
+
+            # 4. Get results and post-process
+            boxes = self.interpreter.get_tensor(self.output_details[0]['index'])[0]
+            classes = self.interpreter.get_tensor(self.output_details[1]['index'])[0]
+            scores = self.interpreter.get_tensor(self.output_details[2]['index'])[0]
+            
+            detection_result = (None, None)
+
+            # Check if we have valid detections
+            if len(scores) == 0 or len(boxes) == 0:
+                # No detections found
+                self.frame = frame
+                return frame, (None, None)
+
+            # (Assuming Queen Bee is class 0, and you'll need a labels file)
+            for i in range(len(scores)):
+                if scores[i] > config.VISION_CONFIDENCE_THRESHOLD:
+                    # Ensure boxes[i] has the expected shape
+                    if len(boxes[i]) < 4:
+                        continue  # Skip malformed detection
+                    
+                    detection_result = (boxes[i], scores[i])
+                    y_min, x_min, y_max, x_max = boxes[i]
+                    
+                    # Convert from normalized to pixel coordinates
+                    (left, right, top, bottom) = (x_min * 640, x_max * 640, 
+                                                  y_min * 480, y_max * 480)
+                    
+                    # Draw bounding box and label
+                    cv2.rectangle(frame, (int(left), int(top)), (int(right), int(bottom)), (0, 255, 0), 2)
+                    label = f"Queen: {int(scores[i]*100)}%"
+                    cv2.putText(frame, label, (int(left), int(top) - 10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    break # Assume only one queen, take the highest score
+
+            self.frame = frame # Store the annotated frame
+            self.latest_detection = detection_result  # Store latest detection
+            return self.frame, detection_result
+            
+        except Exception as e:
+            print(f"Error in AI inference: {e}")
+            # Return raw frame on error
+            self.frame = frame
+            return frame, (None, None)

@@ -47,7 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI UPDATE FUNCTIONS ---
     function updateTimestamp(timestamp) {
-        elements.lastUpdated.textContent = `Last Updated: ${new Date(timestamp * 1000).toLocaleTimeString()}`;
+        const nzTime = new Date(timestamp * 1000).toLocaleString('en-NZ', {
+            timeZone: 'Pacific/Auckland',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        elements.lastUpdated.textContent = `Last Updated: ${nzTime} NZDT/NZST`;
     }
 
     function updateTemperature(temp) {
@@ -182,7 +192,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.queen_detected) {
             elements.ai.status.textContent = `QUEEN DETECTED (${(data.confidence * 100).toFixed(0)}%)`;
             elements.ai.status.classList.add('detected');
-            elements.ai.snapshotTime.textContent = new Date(data.timestamp * 1000).toLocaleTimeString();
+            
+            const nzTime = new Date(data.timestamp * 1000).toLocaleString('en-NZ', {
+                timeZone: 'Pacific/Auckland',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            elements.ai.snapshotTime.textContent = nzTime;
+            
             setTimeout(() => elements.ai.status.classList.remove('detected'), 5000);
         } else {
             elements.ai.status.textContent = 'Actively Scanning';

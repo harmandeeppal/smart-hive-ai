@@ -33,11 +33,35 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 # --- Task Loop Intervals (in seconds) ---
 # -----------------------------------------------------------------------------
 # How often to read and publish sensor telemetry data
-TELEMETRY_INTERVAL_SECONDS = 5
-# How often to run the AI vision processing loop
-VISION_LOOP_INTERVAL_SECONDS = 1
+TELEMETRY_INTERVAL_SECONDS = 60
+
+# --- AI Vision Detection Settings ---
+# AI detection mode: "continuous" or "interval"
+# - "continuous": Runs AI on video frames continuously (real-time detection)
+# - "interval": Runs AI only at specified intervals (legacy mode)
+VISION_DETECTION_MODE = "continuous"  # Recommended: "continuous"
+
+# How often AI processes frames (only used in "continuous" mode)
+# Process every Nth frame to balance CPU usage vs detection speed
+# Examples: 1 = every frame (fastest), 2 = every other frame, 3 = every 3rd frame
+VISION_PROCESS_EVERY_N_FRAMES = 3  # Process every 3rd frame (6-7 FPS detection)
+
+# Cooldown period after queen detection (seconds)
+# Prevents spam notifications for the same queen
+VISION_DETECTION_COOLDOWN_SECONDS = 3600  # 1 hour cooldown
+
+# Minimum confidence threshold for queen detection (0.0 - 1.0)
+VISION_CONFIDENCE_THRESHOLD = 0.5  # 50% confidence required
+
+# Legacy interval mode setting (only used if VISION_DETECTION_MODE = "interval")
+VISION_LOOP_INTERVAL_SECONDS = 3600  # Every 1 hour (legacy mode)
+
 # How often to upload a general snapshot to S3
-S3_SNAPSHOT_INTERVAL_SECONDS = 120 # 2 minutes
+S3_SNAPSHOT_INTERVAL_SECONDS = 3600
+
+# Video stream frame rate (frames per second for live feed)
+# Lower values save CPU/bandwidth, higher values = smoother video
+VIDEO_STREAM_FPS = 20  # 20 FPS = 0.05s delay between frames
 
 # -----------------------------------------------------------------------------
 # --- Hardware Pin Configuration (SunFounder Raspberry Pi Sensor Kit) ---
@@ -48,12 +72,12 @@ I2C_BUS = 1  # Default I2C bus on Raspberry Pi (GPIO pins: SCL=Pin 5, SDA=Pin 3)
 # BME280 Temperature & Humidity Sensor I2C Address
 # Common addresses: 0x77 (default) or 0x76
 # To check your sensor's address, run: sudo i2cdetect -y 1
-BME280_ADDRESS = 0x77
+BME280_ADDRESS = 0x76
 
 # LIS3DH Accelerometer/Vibration Sensor I2C Address
 # Common addresses: 0x18 (default) or 0x19
 # To check your sensor's address, run: sudo i2cdetect -y 1
-LIS3DH_ADDRESS = 0x18
+LIS3DH_ADDRESS = 0x19
 
 # Camera Configuration
 # Options: "USB" for Logitech USB Camera, "PICAMERA" for Raspberry Pi Camera Module
@@ -71,7 +95,7 @@ MICROPHONE_FREQ_DURATION_SEC = 1.0  # Seconds for frequency analysis (needs long
 
 # --- Application Settings ---
 # Set to False when deploying on the Raspberry Pi
-IS_MOCK_ENVIRONMENT = True
+IS_MOCK_ENVIRONMENT = False
 
 # --- AWS DynamoDB Settings ---
 DYNAMODB_TABLE = "SmartHiveTelemetry"

@@ -7,4 +7,7 @@ adafruit-circuitpython-bme280
 adafruit-circuitpython-lis3dh
 sounddevice
 scipy
+numpy==1.24.3
 tflite-runtime
+RPi.GPIO==0.7.1
+pytz

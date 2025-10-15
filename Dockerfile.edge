@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libi2c-dev \
     libopencv-dev \
+    portaudio19-dev \
+    libportaudio2 \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 # --- CORRECTION: Use the edge-specific requirements file ---

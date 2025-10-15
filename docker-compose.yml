@@ -8,16 +8,26 @@ services:
     image: smart-hive-edge:latest
     container_name: smart-hive-edge
     restart: unless-stopped
-    # --- CORRECTION: Use bridge network instead of host ---
     networks:
       - smart-hive-net
     ports:
-      # Expose the video port if you need to access it from the host
       - "5001:5001"
     volumes:
       - .:/app
-      # ✨ NEW: Mount AWS credentials for DynamoDB access
       - ~/.aws:/root/.aws:ro
+    devices:
+      # I2C sensors (BME280, LIS3DH)
+      - "/dev/i2c-1:/dev/i2c-1"
+      # GPIO access
+      - "/dev/gpiomem:/dev/gpiomem"
+      # SPI devices (if needed)
+      - "/dev/spidev0.0:/dev/spidev0.0"
+      - "/dev/spidev0.1:/dev/spidev0.1"
+      # USB Camera (add video0, video1 for compatibility)
+      - "/dev/video0:/dev/video0"
+      # USB Microphone/Audio
+      - "/dev/snd:/dev/snd"
+    privileged: true
 
   dashboard:
     build:
@@ -30,14 +40,14 @@ services:
       - "5000:5000"
     volumes:
       - .:/app
-    # --- CORRECTION: Add network definition ---
+
     networks:
       - smart-hive-net
     # This ensures the dashboard starts after the edge app is ready
     depends_on:
       - edge-app
 
-# --- CORRECTION: Define the custom network ---
+
 networks:
   smart-hive-net:
     driver: bridge
