@@ -1,4 +1,39 @@
-# app.py (Corrected and Enhanced)
+"""
+Smart Hive AI - Edge Application
+
+Description:
+    Main application for the Smart Hive AI system running on Raspberry Pi edge devices.
+    Handles sensor data collection, MQTT communication with AWS IoT Core, 
+    DynamoDB persistence, and real-time AI-powered queen bee detection.
+
+Author: Smart Hive AI Team
+Created: 2024
+Last Modified: October 2025
+
+Dependencies:
+    - paho-mqtt: MQTT client for AWS IoT communication
+    - boto3: AWS SDK for DynamoDB integration
+    - opencv-python: Computer vision and video processing
+    - flask: HTTP server for video streaming
+    - smbus2: I2C sensor communication (Raspberry Pi)
+
+Architecture:
+    - Sensor Layer: BME280 (temp/humidity), LIS3DH (vibration), INMP441 (sound)
+    - Processing Layer: TensorFlow Lite for queen bee detection
+    - Communication Layer: MQTT for real-time telemetry, HTTP for video streaming
+    - Persistence Layer: AWS DynamoDB for historical data storage
+
+Usage:
+    python app.py
+    
+    The application will:
+    1. Initialize hardware sensors or mock components
+    2. Connect to AWS IoT Core via MQTT
+    3. Start telemetry publishing loop (60-second intervals)
+    4. Start video streaming server on port 5001
+    5. Perform continuous AI-powered queen bee detection
+"""
+
 import time
 import json
 import ssl
@@ -11,21 +46,47 @@ from botocore.exceptions import ClientError
 import config
 from paho.mqtt import client as mqtt_client
 
-# --- Component Imports ---
+# Component imports: Use mock components for testing, real components for production
 if config.IS_MOCK_ENVIRONMENT:
     from mock_components import MockBME280, MockLIS3DH, MockINMP441, MockVisionProcessor
 else:
     from real_components import RealBME280, RealLIS3DH, RealVisionProcessor, RealINMP441
 
+
+
 class SmartHiveSystem:
+    """
+    Main controller class for the Smart Hive AI monitoring system.
+    
+    This class orchestrates all components of the smart hive system including sensor
+    data collection, AWS IoT communication, DynamoDB persistence, and AI-powered
+    vision processing for queen bee detection.
+    
+    Attributes:
+        is_running (bool): System operational status flag
+        temp_humidity_sensor: BME280 sensor instance for temperature and humidity
+        vibration_sensor: LIS3DH sensor instance for vibration monitoring
+        sound_sensor: INMP441 sensor instance for audio analysis
+        vision_processor: AI vision processor for queen bee detection
+        mqtt_client: MQTT client for AWS IoT Core communication
+        table: DynamoDB table resource for data persistence
+        sensor_events (dict): Threading events for sensor enable/disable control
+        flask_app (Flask): Flask application for video streaming
+    
+    Example:
+        >>> system = SmartHiveSystem()
+        >>> system.start()
+    """
+    
     def __init__(self):
+        """Initialize the Smart Hive System with all required components."""
         print("Initializing Smart Hive System...")
         self.is_running = True
         
         try:
             self.initialize_components()
         except Exception as e:
-            print(f"❌ CRITICAL: Failed to initialize hardware components: {e}")
+            print(f"CRITICAL: Failed to initialize hardware components: {e}")
             import traceback
             traceback.print_exc()
             self.is_running = False
@@ -34,68 +95,87 @@ class SmartHiveSystem:
         try:
             self.initialize_aws_clients()
         except Exception as e:
-            print(f"❌ CRITICAL: Failed to initialize AWS clients: {e}")
+            print(f"CRITICAL: Failed to initialize AWS clients: {e}")
             import traceback
             traceback.print_exc()
             self.is_running = False
             return
 
+        # Initialize sensor control events for dashboard toggle functionality
         self.sensor_events = {
             "temperature": threading.Event(),
-            "humidity": threading.Event(),  # ✨ NEW: Separate toggle for humidity
+            "humidity": threading.Event(),
             "vibration": threading.Event(),
             "sound": threading.Event(),
-            "vision": threading.Event() # Added for consistency
+            "vision": threading.Event()
         }
         for event in self.sensor_events.values():
             event.set()
 
         self.flask_app = Flask(__name__)
         self.setup_routes()
-        print("✅ Smart Hive System initialized successfully!")
+        print("Smart Hive System initialized successfully")
 
     def initialize_components(self):
-        """Initializes all hardware or mock components."""
+        """
+        Initialize all hardware sensors or mock components.
+        
+        Initializes BME280 (temperature/humidity), LIS3DH (vibration), INMP441 (sound),
+        and TensorFlow Lite vision processor. Uses mock components if IS_MOCK_ENVIRONMENT
+        is True, otherwise initializes real hardware sensors.
+        
+        Raises:
+            Exception: If critical components (vision processor) fail to initialize
+        """
         if config.IS_MOCK_ENVIRONMENT:
             print("INITIALIZING MOCK ENVIRONMENT...")
             self.temp_humidity_sensor = MockBME280()
             self.vibration_sensor = MockLIS3DH()
             self.sound_sensor = MockINMP441()
-            self.vision_processor = MockVisionProcessor(model_path="queen_bee.tflite")
+            self.vision_processor = MockVisionProcessor(model_path="models/queen_bee.tflite")
         else:
-            # This block is for the real Raspberry Pi
+            # Initialize real Raspberry Pi hardware
             print("INITIALIZING REAL HARDWARE...")
             try:
                 self.temp_humidity_sensor = RealBME280()
-                print("  ✅ BME280 Temperature/Humidity sensor initialized")
+                print("  BME280 Temperature/Humidity sensor initialized")
             except Exception as e:
-                print(f"  ⚠️  BME280 initialization failed: {e}")
+                print(f"  WARNING: BME280 initialization failed: {e}")
                 self.temp_humidity_sensor = None
             
             try:
                 self.vibration_sensor = RealLIS3DH()
-                print("  ✅ LIS3DH Vibration sensor initialized")
+                print("  LIS3DH Vibration sensor initialized")
             except Exception as e:
-                print(f"  ⚠️  LIS3DH initialization failed: {e}")
+                print(f"  WARNING: LIS3DH initialization failed: {e}")
                 self.vibration_sensor = None
             
             try:
                 self.sound_sensor = RealINMP441()
-                print("  ✅ INMP441 Sound sensor initialized")
+                print("  INMP441 Sound sensor initialized")
             except Exception as e:
-                print(f"  ⚠️  INMP441 initialization failed: {e}")
+                print(f"  WARNING: INMP441 initialization failed: {e}")
                 self.sound_sensor = None
             
             try:
-                self.vision_processor = RealVisionProcessor(model_path="queen_bee.tflite")
-                print("  ✅ Vision Processor initialized")
+                self.vision_processor = RealVisionProcessor(model_path="models/queen_bee.tflite")
+                print("  Vision Processor initialized")
             except Exception as e:
-                print(f"  ❌ CRITICAL: Vision Processor initialization failed: {e}")
+                print(f"  CRITICAL: Vision Processor initialization failed: {e}")
                 import traceback
                 traceback.print_exc()
                 raise  # Re-raise because vision is critical
 
     def initialize_aws_clients(self):
+        """
+        Initialize AWS IoT Core MQTT client and DynamoDB table connection.
+        
+        Configures MQTT client with TLS certificates for secure communication with
+        AWS IoT Core. If enabled, initializes DynamoDB table for telemetry persistence.
+        
+        Raises:
+            Exception: If AWS client initialization fails
+        """
         self.mqtt_client = mqtt_client.Client(callback_api_version=mqtt_client.CallbackAPIVersion.VERSION1,client_id=config.THING_NAME)
         # --- ENHANCEMENT: Add auto-reconnect logic ---
         self.mqtt_client.on_connect = self.on_mqtt_connect

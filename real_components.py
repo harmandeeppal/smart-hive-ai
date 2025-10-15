@@ -1,4 +1,36 @@
-# real_components.py
+"""
+Smart Hive AI - Real Hardware Components
+
+Description:
+    Production implementations of hardware sensor interfaces for Raspberry Pi.
+    Provides real BME280 (temperature/humidity), LIS3DH (vibration), INMP441 (sound),
+    and TensorFlow Lite vision processing components.
+
+Author: Smart Hive AI Team
+Created: 2024
+Last Modified: October 2025
+
+Dependencies:
+    - adafruit-circuitpython-bme280: BME280 sensor library
+    - adafruit-circuitpython-lis3dh: LIS3DH accelerometer library
+    - tflite-runtime: TensorFlow Lite inference engine
+    - opencv-python: Computer vision operations
+    - sounddevice: Audio capture from USB microphone
+    - scipy: Signal processing and FFT analysis
+
+Hardware Requirements:
+    - BME280 sensor connected via I2C (address 0x76)
+    - LIS3DH sensor connected via I2C (address 0x19)
+    - USB microphone (Samson or compatible)
+    - USB webcam (Logitech C270 or compatible)
+
+Usage:
+    from real_components import RealBME280, RealLIS3DH, RealINMP441, RealVisionProcessor
+    
+    temp_sensor = RealBME280()
+    temperature, humidity = temp_sensor.get_temp_humidity()
+"""
+
 import board
 import busio
 import adafruit_bme280.advanced as adafruit_bme280
@@ -10,10 +42,34 @@ import sounddevice as sd
 from scipy.fft import fft, fftfreq
 import config
 
+
 class RealINMP441:
-    """Interface for a real microphone using sounddevice."""
+    """
+    Real INMP441 I2S microphone interface using USB audio capture.
+    
+    Captures audio data from USB microphone and performs sound level (dB)
+    and frequency analysis for beehive acoustic monitoring.
+    
+    Attributes:
+        sample_rate (int): Audio sampling rate in Hz
+        duration_ms (int): Recording duration for dB analysis in milliseconds
+        freq_duration_sec (float): Recording duration for frequency analysis in seconds
+        is_working (bool): Sensor operational status
+    
+    Example:
+        >>> sensor = RealINMP441()
+        >>> db_level = sensor.get_db_level()
+        >>> frequency = sensor.get_dominant_frequency()
+    """
+    
     def __init__(self, sample_rate=None, duration_ms=None):
+        """
+        Initialize microphone interface.
         
+        Args:
+            sample_rate (int, optional): Sampling rate in Hz. Defaults to config value.
+            duration_ms (int, optional): Recording duration in ms. Defaults to config value.
+        """
         self.sample_rate = sample_rate or config.MICROPHONE_SAMPLE_RATE
         self.duration_ms = duration_ms or config.MICROPHONE_DURATION_MS
         self.freq_duration_sec = config.MICROPHONE_FREQ_DURATION_SEC
@@ -28,13 +84,23 @@ class RealINMP441:
             self.is_working = False
 
     def get_db_level(self):
-        """Get the volume level in decibels."""
+        """
+        Measure sound level in decibels.
+        
+        Records a short audio sample and calculates RMS (Root Mean Square)
+        to determine sound pressure level in decibels.
+        
+        Returns:
+            float: Sound level in dB (range: 40-70 dB for normal hive)
+                  Returns -100.0 if microphone is not working
+        """
         if not self.is_working:
-            return -100.0 # Return a very low dB value on error
+            return -100.0  # Return a very low dB value on error
 
         try:
             # Record audio for a short duration
-            recording = sd.rec(int(self.duration_ms / 1000 * self.sample_rate), samplerate=self.sample_rate, channels=1, dtype='float32')
+            recording = sd.rec(int(self.duration_ms / 1000 * self.sample_rate), 
+                             samplerate=self.sample_rate, channels=1, dtype='float32')
             sd.wait()  # Wait for recording to complete
 
             # Calculate RMS (Root Mean Square) of the audio signal

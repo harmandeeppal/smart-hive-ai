@@ -1,56 +1,150 @@
-# mock_components.py
-# This file simulates the hardware sensors for development on a laptop.
+"""
+Smart Hive AI - Mock Hardware Components
+
+Description:
+    Provides mock implementations of hardware sensors for development and testing
+    without requiring physical Raspberry Pi hardware. Simulates realistic sensor
+    readings for BME280 (temperature/humidity), LIS3DH (vibration), INMP441 (sound),
+    and vision processing components.
+
+Author: Smart Hive AI Team
+Created: 2024
+Last Modified: October 2025
+
+Dependencies:
+    - numpy: For numerical simulations
+    - opencv-python: For mock camera frames
+
+Mock Components:
+    - MockBME280: Temperature and humidity sensor
+    - MockLIS3DH: Vibration/accelerometer sensor
+    - MockINMP441: Sound level and frequency sensor
+    - MockVisionProcessor: AI-powered queen bee detection
+
+Usage:
+    from mock_components import MockBME280, MockLIS3DH, MockINMP441, MockVisionProcessor
+    
+    sensor = MockBME280()
+    temp, humidity = sensor.get_temp_humidity()
+"""
 
 import time
 import random
 import numpy as np
 import cv2
 
+
 class MockBME280:
-    """A mock BME280 temperature and humidity sensor."""
+    """
+    Mock implementation of BME280 temperature and humidity sensor.
+    
+    Simulates realistic beehive brood chamber conditions with slight
+    random variations to mimic real sensor readings.
+    
+    Attributes:
+        temperature (float): Base temperature in Celsius (typical: 34.5C)
+        humidity (float): Base humidity percentage (typical: 58%)
+    
+    Example:
+        >>> sensor = MockBME280()
+        >>> temp, humidity = sensor.get_temp_humidity()
+        >>> print(f"Temperature: {temp}C, Humidity: {humidity}%")
+    """
+    
     def __init__(self):
+        """Initialize mock BME280 sensor with typical hive conditions."""
         print("Initialized Mock BME280 Sensor.")
-        self.temperature = 34.5  # Realistic brood temperature in °C
-        self.humidity = 58.0     # Realistic humidity in %
+        self.temperature = 34.5  # Realistic brood temperature in Celsius
+        self.humidity = 58.0     # Realistic humidity percentage
 
     def get_temp_humidity(self):
-        # To test different dashboard statuses, you can modify these values.
-        # Example:
-        # temp = 38.5 # Too Hot
-        # temp = 29.0 # Too Cold
+        """
+        Get simulated temperature and humidity readings.
+        
+        Returns:
+            tuple: (temperature, humidity) in (Celsius, percentage)
+                  Temperature range: 34.3-34.7C
+                  Humidity range: 57.0-59.0%
+        """
+        # Simulate slight variations in sensor readings
         temp = 34.5 + random.uniform(-0.2, 0.2)
         hum = 58.0 + random.uniform(-1.0, 1.0)
 
         return (round(temp, 2), round(hum, 2))
 
+
 class MockLIS3DH:
-    """A mock LIS3DH vibration sensor."""
+    """
+    Mock implementation of LIS3DH accelerometer/vibration sensor.
+    
+    Simulates beehive vibration patterns with baseline activity and
+    occasional spikes to represent bee movement and wing fanning.
+    
+    Example:
+        >>> sensor = MockLIS3DH()
+        >>> vibration = sensor.get_rms_acceleration()
+        >>> print(f"Vibration RMS: {vibration}")
+    """
+    
     def __init__(self):
+        """Initialize mock LIS3DH sensor."""
         print("Initialized Mock LIS3DH Sensor.")
 
     def get_rms_acceleration(self):
+        """
+        Get simulated RMS (Root Mean Square) acceleration reading.
+        
+        Returns:
+            float: RMS acceleration value
+                  Baseline: 0.04-0.06
+                  Spikes: 0.15-0.35 (5% probability)
+        """
         # Simulate a baseline vibration level with occasional spikes
         base_vibration = 0.05
-        if random.random() < 0.05: # 5% chance of a spike
+        if random.random() < 0.05:  # 5% chance of a spike
             return round(base_vibration + random.uniform(0.1, 0.3), 4)
         return round(base_vibration + random.uniform(-0.01, 0.01), 4)
 
+
 class MockINMP441:
-    """A mock INMP441 I2S microphone."""
+    """
+    Mock implementation of INMP441 I2S microphone.
+    
+    Simulates beehive sound levels and frequency analysis for detecting
+    hive activity patterns and potential issues.
+    
+    Example:
+        >>> sensor = MockINMP441()
+        >>> db_level = sensor.get_db_level()
+        >>> frequency = sensor.get_dominant_frequency()
+    """
+    
     def __init__(self):
+        """Initialize mock INMP441 sound sensor."""
         print("Initialized Mock INMP441 Sound Sensor.")
     
     def get_db_level(self):
-        """Simulate volume level in decibels (40-70 dB range for normal hive)."""
+        """
+        Get simulated sound level in decibels.
+        
+        Returns:
+            float: Sound level in dB (range: 49-55 dB)
+                  Normal hive hum: 52 dB +/- 3 dB
+        """
         # Simulate a baseline hive hum
         return round(52 + random.uniform(-3, 3), 1)
     
     def get_dominant_frequency(self):
-        """Simulate dominant frequency in Hz.
+        """
+        Get simulated dominant frequency in Hz.
         
-        Normal hive: 200-300 Hz (healthy hum)
-        Queenless roar: 350-450 Hz (high-pitched distress)
-        Swarming signals: 450-550 Hz (piping/quacking)
+        Simulates different hive states based on frequency patterns:
+        - Normal hive: 200-300 Hz (healthy hum)
+        - Queenless roar: 350-450 Hz (high-pitched distress)
+        - Swarming signals: 450-550 Hz (piping/quacking)
+        
+        Returns:
+            float: Dominant frequency in Hz (range: 200-550 Hz)
         """
         # Most of the time, simulate normal frequency
         if random.random() < 0.8:  # 80% normal
@@ -60,23 +154,51 @@ class MockINMP441:
         else:  # 10% swarming signals
             return round(random.uniform(450, 550), 1)
 
+
 class MockCamera:
-    """A mock Raspberry Pi Camera."""
+    """
+    Mock implementation of Raspberry Pi Camera.
+    
+    Generates blank frames with timestamp overlay for testing without
+    physical camera hardware.
+    
+    Example:
+        >>> camera = MockCamera()
+        >>> frame = camera.capture_frame()
+    """
+    
     def __init__(self):
+        """Initialize mock camera."""
         print("Initialized Mock Camera.")
     
     def capture_frame(self):
-        # In a real scenario, this would return an OpenCV image (NumPy array).
-        # For simulation, we create a blank image with a timestamp.
+        """
+        Capture a mock camera frame.
+        
+        Returns:
+            numpy.ndarray: 640x480 BGR image with timestamp overlay
+        """
+        # Create a blank image with a timestamp
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         text = f"MOCK CAMERA FEED: {time.strftime('%Y-%m-%d %H:%M:%S')}"
         cv2.putText(frame, text, (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         return frame
 
+
 class MockVisionProcessor:
     """
-    A mock Vision Processor that simulates TFLite inference
-    and generates a mock video frame.
+    Mock implementation of TensorFlow Lite vision processor.
+    
+    Simulates AI-powered queen bee detection with configurable detection
+    probability for testing without real TFLite model inference.
+    
+    Attributes:
+        model_path (str): Path to TFLite model file (not actually loaded in mock)
+        last_detection_time (float): Timestamp of last queen detection
+    
+    Example:
+        >>> processor = MockVisionProcessor(model_path="models/queen_bee.tflite")
+        >>> frame, detected, confidence = processor.process_frame()
     """
     def __init__(self, model_path):
         print(f"Initialized Mock Vision Processor with model: {model_path}")

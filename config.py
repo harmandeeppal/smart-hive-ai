@@ -1,54 +1,121 @@
-# config.py
+"""
+Smart Hive AI - Configuration Module
+
+Description:
+    Central configuration management for the Smart Hive AI system.
+    Loads environment variables and defines system-wide constants for AWS IoT Core,
+    sensor polling intervals, AI detection settings, and feature flags.
+
+Author: Smart Hive AI Team
+Created: 2024
+Last Modified: October 2025
+
+Configuration Categories:
+    - AWS IoT Core: MQTT endpoint, certificates, thing name
+    - AWS Services: DynamoDB, S3 bucket settings
+    - MQTT Topics: Telemetry, vision, control topics
+    - Sensor Intervals: Telemetry collection frequency
+    - AI Vision: Detection mode and processing frequency
+    - Environment: Mock/real hardware toggle
+
+Environment Variables Required:
+    - AWS_ENDPOINT: AWS IoT Core endpoint URL
+    - CERT_FILE_NAME: Client certificate filename
+    - KEY_FILE_NAME: Private key filename
+    - SECRET_KEY: Flask application secret key
+    - S3_BUCKET_NAME: S3 bucket for image uploads (optional)
+    - ENABLE_S3: Enable/disable S3 uploads (optional)
+
+Usage:
+    import config
+    print(config.AWS_ENDPOINT)
+    print(config.TELEMETRY_INTERVAL_SECONDS)
+"""
 
 import os
 from dotenv import load_dotenv
 
-load_dotenv() # Loads variables from .env file
+# Load environment variables from .env file
+load_dotenv()
 
-# --- AWS IoT Core Settings ---
+# -----------------------------------------------------------------------------
+# AWS IoT Core Settings
+# -----------------------------------------------------------------------------
+
+# AWS IoT Core MQTT endpoint (loaded from environment)
 AWS_ENDPOINT = os.getenv("AWS_ENDPOINT")
+
+# AWS IoT Thing name (device identifier)
 THING_NAME = "SmartHive_Pi"
 
-# --- Certificate Paths ---
+# -----------------------------------------------------------------------------
+# Certificate Paths
+# -----------------------------------------------------------------------------
+
+# Certificate filenames (loaded from environment)
 CERT_FILE_NAME = os.getenv("CERT_FILE_NAME")
 KEY_FILE_NAME = os.getenv("KEY_FILE_NAME")
 
+# Construct absolute paths to certificate files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CA_PATH = os.path.join(BASE_DIR, "certs", "AmazonRootCA1.pem")
 CERT_PATH = os.path.join(BASE_DIR, "certs", CERT_FILE_NAME)
 KEY_PATH = os.path.join(BASE_DIR, "certs", KEY_FILE_NAME)
 
-# --- Flask Secret Key ---
+# -----------------------------------------------------------------------------
+# Flask Configuration
+# -----------------------------------------------------------------------------
+
+# Flask secret key for session management (loaded from environment)
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# --- MQTT Topics ---
+# -----------------------------------------------------------------------------
+# MQTT Topics
+# -----------------------------------------------------------------------------
+
+# Topic for publishing sensor telemetry data
 TOPIC_TELEMETRY = "hive/telemetry"
+
+# Topic for publishing AI vision detection results
 TOPIC_VISION = "hive/vision"
+
+# Topic for receiving control commands
 TOPIC_CONTROL = "hive/control"
 
-# --- AWS S3 Settings ---
+# -----------------------------------------------------------------------------
+# AWS S3 Settings
+# -----------------------------------------------------------------------------
+
+# S3 bucket name for image uploads (loaded from environment)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-ENABLE_S3 = os.getenv("ENABLE_S3", "false").lower() == "true"  # Set to "true" in .env to enable S3 uploads
+
+# Feature flag to enable/disable S3 uploads
+ENABLE_S3 = os.getenv("ENABLE_S3", "false").lower() == "true"
 
 # -----------------------------------------------------------------------------
-# --- Task Loop Intervals (in seconds) ---
+# Task Loop Intervals
 # -----------------------------------------------------------------------------
-# How often to read and publish sensor telemetry data
+
+# Telemetry collection interval in seconds
+# Defines how often sensor data is read and published to MQTT
 TELEMETRY_INTERVAL_SECONDS = 60
 
-# --- AI Vision Detection Settings ---
+# -----------------------------------------------------------------------------
+# AI Vision Detection Settings
+# -----------------------------------------------------------------------------
+
 # AI detection mode: "continuous" or "interval"
 # - "continuous": Runs AI on video frames continuously (real-time detection)
 # - "interval": Runs AI only at specified intervals (legacy mode)
 VISION_DETECTION_MODE = "continuous"  # Recommended: "continuous"
 
-# How often AI processes frames (only used in "continuous" mode)
+# Frame processing frequency (only used in "continuous" mode)
 # Process every Nth frame to balance CPU usage vs detection speed
 # Examples: 1 = every frame (fastest), 2 = every other frame, 3 = every 3rd frame
-VISION_PROCESS_EVERY_N_FRAMES = 3  # Process every 3rd frame (6-7 FPS detection)
+VISION_PROCESS_EVERY_N_FRAMES = 3  # Process every 3rd frame (approximately 6-7 FPS)
 
-# Cooldown period after queen detection (seconds)
-# Prevents spam notifications for the same queen
+# Cooldown period after queen detection in seconds
+# Prevents duplicate detections and excessive alerts
 VISION_DETECTION_COOLDOWN_SECONDS = 3600  # 1 hour cooldown
 
 # Minimum confidence threshold for queen detection (0.0 - 1.0)
@@ -57,20 +124,21 @@ VISION_CONFIDENCE_THRESHOLD = 0.5  # 50% confidence required
 # Legacy interval mode setting (only used if VISION_DETECTION_MODE = "interval")
 VISION_LOOP_INTERVAL_SECONDS = 3600  # Every 1 hour (legacy mode)
 
-# How often to upload a general snapshot to S3
+# S3 snapshot upload interval in seconds
 S3_SNAPSHOT_INTERVAL_SECONDS = 3600
 
 # Video stream frame rate (frames per second for live feed)
-# Lower values save CPU/bandwidth, higher values = smoother video
+# Lower values save CPU/bandwidth, higher values provide smoother video
 VIDEO_STREAM_FPS = 20  # 20 FPS = 0.05s delay between frames
 
 # -----------------------------------------------------------------------------
-# --- Hardware Pin Configuration (SunFounder Raspberry Pi Sensor Kit) ---
+# Hardware Pin Configuration
 # -----------------------------------------------------------------------------
-# I2C Bus Configuration
+
+# I2C Bus Configuration for Raspberry Pi
 I2C_BUS = 1  # Default I2C bus on Raspberry Pi (GPIO pins: SCL=Pin 5, SDA=Pin 3)
 
-# BME280 Temperature & Humidity Sensor I2C Address
+# BME280 Temperature and Humidity Sensor I2C Address
 # Common addresses: 0x77 (default) or 0x76
 # To check your sensor's address, run: sudo i2cdetect -y 1
 BME280_ADDRESS = 0x76
@@ -93,12 +161,24 @@ MICROPHONE_SAMPLE_RATE = 44100  # Hz
 MICROPHONE_DURATION_MS = 100     # Milliseconds for dB sampling
 MICROPHONE_FREQ_DURATION_SEC = 1.0  # Seconds for frequency analysis (needs longer sample)
 
+# -----------------------------------------------------------------------------
+# Application Settings
+# -----------------------------------------------------------------------------
 
-# --- Application Settings ---
-# Set to False when deploying on the Raspberry Pi
+# Environment mode toggle
+# Set to False when deploying on the Raspberry Pi with real hardware
+# Set to True for development/testing with mock sensors
 IS_MOCK_ENVIRONMENT = False
 
-# --- AWS DynamoDB Settings ---
+# -----------------------------------------------------------------------------
+# AWS DynamoDB Settings
+# -----------------------------------------------------------------------------
+
+# DynamoDB table name for telemetry storage
 DYNAMODB_TABLE = "SmartHiveTelemetry"
-ENABLE_DYNAMODB = True  # Set to False to disable database logging
-AWS_REGION = "ap-southeast-2"  # CHANGE THIS to match your DynamoDB table region
+
+# Feature flag to enable/disable DynamoDB writes
+ENABLE_DYNAMODB = True
+
+# AWS region where DynamoDB table is located
+AWS_REGION = "ap-southeast-2"
