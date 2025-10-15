@@ -130,7 +130,12 @@ def check_recent_data(table, device_id='SmartHive_Pi', hours=24):
         print(f"\n📋 Latest 5 records:")
         
         for i, item in enumerate(items[:5], 1):
+            # Handle Decimal type from DynamoDB
+            from decimal import Decimal
             timestamp = item['timestamp']
+            if isinstance(timestamp, Decimal):
+                timestamp = int(timestamp)
+            
             dt = datetime.fromtimestamp(timestamp, tz=pytz.timezone('Pacific/Auckland'))
             
             print(f"\n{i}. Timestamp: {timestamp}")
