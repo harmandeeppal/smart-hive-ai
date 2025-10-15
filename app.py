@@ -110,10 +110,22 @@ class SmartHiveSystem:
             print(f"FATAL: Error connecting to AWS IoT Core: {e}")
             self.is_running = False
 
-        if not config.IS_MOCK_ENVIRONMENT:
-            self.s3_client = boto3.client('s3')
+        # Initialize S3 client (only if enabled and not in mock environment)
+        if config.ENABLE_S3 and not config.IS_MOCK_ENVIRONMENT:
+            try:
+                self.s3_client = boto3.client('s3')
+                # Verify bucket exists
+                self.s3_client.head_bucket(Bucket=config.S3_BUCKET_NAME)
+                print(f"✅ S3 bucket '{config.S3_BUCKET_NAME}' connected successfully.")
+            except Exception as e:
+                print(f"⚠️  S3 bucket error: {e}")
+                print(f"   S3 uploads will be disabled. Check bucket name in .env file.")
+                self.s3_client = None
         else:
             self.s3_client = None
+            if not config.ENABLE_S3:
+                print("⚠️  S3 disabled (ENABLE_S3 = False)")
+        
         print("AWS clients initialized.")
 
         # Initialize DynamoDB client
@@ -212,6 +224,16 @@ class SmartHiveSystem:
 
     # --- Individual Task Loops ---
     def s3_snapshot_loop(self):
+        """Periodically uploads camera snapshots to S3 (if enabled)."""
+        if not config.ENABLE_S3:
+            print("⚠️  S3 snapshot uploads disabled (ENABLE_S3 = False)")
+            return
+        
+        if config.IS_MOCK_ENVIRONMENT:
+            print("📸 S3 snapshot loop started (MOCK MODE)")
+        else:
+            print(f"📸 S3 snapshot loop started (bucket: {config.S3_BUCKET_NAME})")
+        
         while self.is_running:
             try:
                 # --- CORRECTION: Use the newly created method ---
@@ -236,7 +258,10 @@ class SmartHiveSystem:
             time.sleep(config.S3_SNAPSHOT_INTERVAL_SECONDS)
 
     def upload_detection_snapshot(self, frame, confidence):
-        """Uploads a snapshot of a queen detection to S3."""
+        """Uploads a snapshot of a queen detection to S3 (if enabled)."""
+        if not config.ENABLE_S3:
+            return  # Skip upload if S3 is disabled
+        
         try:
             ret, buffer = cv2.imencode('.jpg', frame)
             if ret:

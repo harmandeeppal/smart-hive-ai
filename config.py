@@ -28,6 +28,7 @@ TOPIC_CONTROL = "hive/control"
 
 # --- AWS S3 Settings ---
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+ENABLE_S3 = os.getenv("ENABLE_S3", "false").lower() == "true"  # Set to "true" in .env to enable S3 uploads
 
 # -----------------------------------------------------------------------------
 # --- Task Loop Intervals (in seconds) ---
