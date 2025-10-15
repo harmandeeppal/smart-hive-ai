@@ -16,6 +16,10 @@
 | **README.md** | Main project overview, features, quick start | 12.8 KB | Everyone |
 | **DEPLOYMENT_GUIDE.md** | Complete Raspberry Pi deployment steps | 9.4 KB | Developers/Deployers |
 | **TROUBLESHOOTING.md** | Solutions for common issues | 14.2 KB | Support/Debugging |
+| **DEPLOYMENT_ISSUES_AND_TFLITE.md** | Advanced deployment issues & TFLite compatibility | 15.1 KB | Advanced Deployers |
+| **DOCKER_FIXES.md** | Docker build fixes (RPi.GPIO, PortAudio) | 8.2 KB | Deployers |
+| **RASPBERRY_PI_ERROR_FIXES.md** | Critical runtime error fixes (NumPy, BME280, boto3) | 12.5 KB | Deployers |
+| **SOUND_AI_INTEGRATION.md** | Sound AI implementation guide (multi-modal AI) | 28.5 KB | Developers/Researchers |
 
 ### docs/ Directory
 
@@ -38,12 +42,19 @@
 1. **README.md** - System overview
 2. **docs/PROJECT_PLAN.md** - Research objectives and architecture
 3. **docs/IMPLEMENTATION_SUMMARY.md** - Technical details for thesis
+4. **SOUND_AI_INTEGRATION.md** - Multi-modal AI (vision + sound) implementation
 
 ### For Developers/Contributors:
 1. **README.md** - Quick start
 2. **docs/CONFIGURATION_GUIDE.md** - Customize settings
 3. **docs/IMPLEMENTATION_SUMMARY.md** - Understand codebase
 4. **TROUBLESHOOTING.md** - Debug issues
+5. **SOUND_AI_INTEGRATION.md** - Add sound classification capability
+
+### For Advanced Deployment:
+1. **DEPLOYMENT_GUIDE.md** - Basic Pi setup
+2. **DEPLOYMENT_ISSUES_AND_TFLITE.md** - Advanced issues & TFLite models
+3. **SOUND_AI_INTEGRATION.md** - Multi-modal AI expansion
 
 ---
 
@@ -169,6 +180,110 @@
 - 📡 MQTT communication patterns
 - 🤖 AI inference pipeline
 - 🐳 Docker containerization
+- 🔍 Testing strategies
+- 🚀 Best practices
+
+**When to read:** When contributing code or understanding internals
+
+**Audience:** Software developers
+
+---
+
+### DEPLOYMENT_ISSUES_AND_TFLITE.md (Advanced Deployment)
+**Purpose:** Handle advanced deployment scenarios and TFLite model flexibility
+
+**Contains:**
+- 🚨 10 Potential Deployment Issues:
+  - Camera auto-detection failures
+  - I2C device scanning problems
+  - USB audio enumeration
+  - SD card endurance & log rotation
+  - Network resilience & reconnection
+  - Time synchronization
+  - ARM architecture Docker optimization
+  - Firewall testing
+  - Certificate expiration monitoring
+  - Thermal throttling on Pi
+- 🤖 TFLite Model Compatibility System:
+  - Flexible vision_utils.py module
+  - Dynamic model shape handling
+  - Preprocessing pipeline adaptation
+  - Postprocessing for any YOLO model
+  - Mock/real component patterns
+- 💡 Code solutions for all issues
+- 🧪 Testing frameworks
+
+**When to read:** After basic deployment, before production scaling
+
+**Audience:** DevOps engineers, advanced deployers
+
+---
+
+### SOUND_AI_INTEGRATION.md (Multi-Modal AI)
+**Purpose:** Complete guide for adding sound classification to vision AI system
+
+**Contains:**
+- 🎤 Sound AI architecture (dual AI pipeline)
+- 📦 Prerequisites (hardware, software, trained model)
+- 🔧 Step-by-step implementation:
+  - config.py sound AI configuration
+  - sound_utils.py complete implementation
+  - Mock/real component updates
+  - app.py integration (threading, alerts, S3, DynamoDB)
+  - Dashboard updates (HTML, CSS, JavaScript)
+  - Requirements & Dockerfile updates
+- 🧪 Testing procedures (5 test scenarios)
+- 🚀 Deployment checklist
+- 🐛 Troubleshooting (6 common issues)
+- 📊 Performance considerations
+- 🎓 Model training tips (data collection, frameworks, optimization)
+- 📚 Additional resources
+
+**When to read:** When adding sound classification capability (multi-modal AI)
+
+**Audience:** Researchers expanding AI capabilities, ML engineers
+
+**Time required:** 2-4 hours implementation + model training time
+
+---
+
+### docs/PROJECT_PLAN.md (Academic Overview)
+**Purpose:** Original project plan for thesis/research
+
+**Contains:**
+- 📝 Executive summary and abstract
+- 🎯 Core objectives and success criteria
+- 🏗️ System architecture
+- 🔄 Data flow diagrams
+- 📊 Technology stack rationale
+- 🎓 Academic context
+- 📈 Measurable success metrics
+- 🔮 Future enhancements
+
+**When to read:** For thesis research, academic understanding
+
+**Audience:** Supervisors, examiners, researchers
+
+---
+
+### docs/CONFIGURATION_GUIDE.md (Advanced Settings)
+**Purpose:** Detailed configuration options
+
+**Contains:**
+- ⚙️ config.py full reference
+- 🔧 Environment variables
+- 🌐 AWS service configuration
+- 📡 MQTT topic structure
+- 🔢 Sensor calibration
+- 🎥 Camera settings
+- 🤖 AI model configuration
+- 📊 Performance tuning
+
+**When to read:** When customizing the system
+
+**Audience:** Advanced users, developers
+
+---
 - ☁️ AWS integration details
 - 🔒 Security considerations
 

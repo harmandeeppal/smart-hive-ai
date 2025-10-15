@@ -17,21 +17,24 @@ A production-ready, containerized system that combines IoT sensors, computer vis
 - **Vibration Analysis** (LIS3DH accelerometer)
 - **Sound Monitoring** (USB microphone with frequency analysis)
 
-### 🤖 AI-Powered Vision
+### 🤖 AI-Powered Vision & Sound
 - **Live Video Streaming** (MJPEG)
 - **Queen Bee Detection** (YOLOv5 TFLite model)
+- **Sound Classification** (Bee sound AI model - optional)
+- **Multi-Modal AI** (Vision + Sound analysis)
 - **Real-time Inference** on Raspberry Pi
 
 ### ☁️ AWS Cloud Integration
 - **DynamoDB** - Telemetry data storage
 - **AWS IoT Core** - Real-time MQTT messaging
-- **S3** - Image snapshot archival
+- **S3** - Image & audio snapshot archival
 
 ### 📊 Interactive Dashboard
 - **Live Visualization** (Chart.js)
 - **Real-time Updates** (WebSocket)
 - **Remote Control** (Toggle sensors)
 - **Video Feed** with AI overlays
+- **Sound Classification Display** (when enabled)
 
 ### 🐳 Fully Containerized
 - **Zero Code Changes** between laptop and Pi
@@ -235,6 +238,10 @@ ENABLE_DYNAMODB = True       # Store telemetry data
 ENABLE_S3 = True             # Upload snapshots
 AWS_REGION = "ap-southeast-2"
 
+# AI Features
+ENABLE_VISION_AI = True      # Queen bee detection
+ENABLE_SOUND_AI = False      # Sound classification (optional, see SOUND_AI_INTEGRATION.md)
+
 # Intervals (seconds)
 TELEMETRY_INTERVAL_SECONDS = 5        # Sensor reading frequency
 S3_SNAPSHOT_INTERVAL_SECONDS = 120    # Image upload frequency
@@ -313,6 +320,8 @@ This project was developed as part of a Master's thesis on IoT and Edge AI for a
 - 🏗️ [Project Plan](docs/PROJECT_PLAN.md) - Architecture and objectives
 - ⚙️ [Configuration Guide](docs/CONFIGURATION_GUIDE.md) - Detailed settings
 - ✅ [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) - Technical details
+- 🔧 [Advanced Deployment Issues](DEPLOYMENT_ISSUES_AND_TFLITE.md) - TFLite & edge cases
+- 🎤 [Sound AI Integration](SOUND_AI_INTEGRATION.md) - Add multi-modal AI (vision + sound)
 
 ---
 
