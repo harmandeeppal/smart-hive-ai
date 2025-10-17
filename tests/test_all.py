@@ -213,12 +213,12 @@ class TestPathConfiguration:
     
     def test_vision_model_path_accessible(self):
         """Test vision model path can be accessed."""
-        path = Path('ml_vision_model/vision_model.pt')
+        path = Path('models/vision_model.pt')
         assert path.exists() or (PROJECT_ROOT / path).exists()
     
     def test_audio_model_path_accessible(self):
         """Test audio model path can be accessed."""
-        path = Path('ml_audio_model/audio_model.pkl')
+        path = Path('models/audio_model.pkl')
         assert path.exists() or (PROJECT_ROOT / path).exists()
     
     def test_models_directory_exists(self):
@@ -234,7 +234,7 @@ class TestConfigurationInML:
     def test_config_paths_use_relative_imports(self):
         """Test that paths use relative imports correctly."""
         # Vision model path should be resolvable
-        vision_path = 'ml_vision_model/vision_model.pt'
+        vision_path = 'models/vision_model.pt'
         full_path = PROJECT_ROOT / vision_path
         assert full_path.exists() or Path(vision_path).exists()
     
