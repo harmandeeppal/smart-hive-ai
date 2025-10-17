@@ -18,11 +18,13 @@ COPY requirements-ml.txt .
 # 1. Install headless OpenCV first
 # 2. Install all requirements (which may pull in GUI opencv)
 # 3. Uninstall GUI version and force-reinstall headless version
+# 4. Pin numpy to 1.24.3 (OpenCV 4.8.0.76 requires NumPy 1.x, not 2.x)
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir opencv-python-headless==4.8.0.76 && \
+    pip install --no-cache-dir 'numpy==1.24.3' && \
+    pip install --no-cache-dir 'opencv-python-headless==4.8.0.76' && \
     pip install --no-cache-dir -r requirements-ml.txt || true && \
     pip uninstall -y opencv-python && \
-    pip install --no-cache-dir --force-reinstall opencv-python-headless==4.8.0.76 && \
+    pip install --no-cache-dir --force-reinstall 'numpy==1.24.3' 'opencv-python-headless==4.8.0.76' && \
     find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # Copy ML models (after dependencies to leverage layer caching)
