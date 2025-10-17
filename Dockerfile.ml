@@ -24,7 +24,9 @@ COPY ml_inference_service.py .
 COPY requirements-ml.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements-ml.txt
+# Install opencv-python-headless first with --force-reinstall to prevent GUI version from being installed as dependency
+RUN pip install --no-cache-dir opencv-python-headless==4.8.0.76 && \
+    pip install --no-cache-dir --no-build-isolation -r requirements-ml.txt
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
