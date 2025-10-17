@@ -14,9 +14,15 @@ COPY requirements-ml.txt .
 
 # Install Python dependencies with headless OpenCV first
 # Using --no-cache-dir to minimize image size during build
+# CRITICAL: ultralytics will try to install opencv-python, so we need to:
+# 1. Install headless OpenCV first
+# 2. Install all requirements (which may pull in GUI opencv)
+# 3. Uninstall GUI version and force-reinstall headless version
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir opencv-python-headless==4.8.0.76 && \
-    pip install --no-cache-dir -r requirements-ml.txt && \
+    pip install --no-cache-dir -r requirements-ml.txt || true && \
+    pip uninstall -y opencv-python && \
+    pip install --no-cache-dir --force-reinstall opencv-python-headless==4.8.0.76 && \
     find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # Copy ML models (after dependencies to leverage layer caching)
