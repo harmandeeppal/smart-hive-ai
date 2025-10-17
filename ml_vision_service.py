@@ -77,7 +77,9 @@ class VisionInferenceService:
         self.setup_mqtt()
     
     def setup_mqtt(self):
-        """Setup MQTT client connection"""
+        """Setup MQTT client connection with retry logic"""
+        import time
+        
         # Use VERSION1 for compatibility with older paho-mqtt versions
         try:
             self.mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, client_id=self.client_id)
@@ -89,13 +91,23 @@ class VisionInferenceService:
         self.mqtt_client.on_message = self.on_message
         self.mqtt_client.on_disconnect = self.on_disconnect
         
-        # Setup connection (local mosquitto, no TLS)
-        try:
-            self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
-            self.mqtt_client.loop_start()
-            logger.info(f"✅ MQTT connecting to {self.mqtt_broker}:{self.mqtt_port}")
-        except Exception as e:
-            logger.error(f"❌ MQTT connection failed: {e}")
+        # Setup connection with retry logic (wait for mosquitto to be ready)
+        max_retries = 10
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"MQTT connection attempt {attempt + 1}/{max_retries} to {self.mqtt_broker}:{self.mqtt_port}")
+                self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
+                self.mqtt_client.loop_start()
+                logger.info(f"✅ MQTT connecting to {self.mqtt_broker}:{self.mqtt_port}")
+                return
+            except Exception as e:
+                logger.warning(f"⚠️  MQTT connection attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"❌ MQTT connection failed after {max_retries} attempts")
     
     def on_connect(self, client, userdata, flags, rc):
         """MQTT connection callback"""
