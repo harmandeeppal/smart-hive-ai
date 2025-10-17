@@ -1,6 +1,19 @@
-# docker-compose.yml (Corrected and Enhanced)
+# docker-compose.yml - Smart Hive AI
+# Separated Vision and Audio microservices
+
+version: '3.8'
 
 services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+    networks:
+      - smart-hive-net
+
   edge-app:
     build:
       context: .
@@ -14,54 +27,52 @@ services:
       - "5001:5001"
     volumes:
       - .:/app
-      - ~/.aws:/root/.aws:ro
     devices:
-      # I2C sensors (BME280, LIS3DH)
       - "/dev/i2c-1:/dev/i2c-1"
-      # GPIO access
       - "/dev/gpiomem:/dev/gpiomem"
-      # SPI devices (if needed)
-      - "/dev/spidev0.0:/dev/spidev0.0"
-      - "/dev/spidev0.1:/dev/spidev0.1"
-      # USB Camera (add video0, video1 for compatibility)
       - "/dev/video0:/dev/video0"
-      # USB Microphone/Audio
       - "/dev/snd:/dev/snd"
     privileged: true
+    depends_on:
+      - mosquitto
 
-  smart-hive-ml:
+  smart-hive-vision:
     build:
       context: .
-      dockerfile: Dockerfile.ml
-    image: smart-hive-ml:latest
-    container_name: smart-hive-ml
+      dockerfile: Dockerfile.vision
+    image: smart-hive-vision:latest
+    container_name: smart-hive-vision
     restart: unless-stopped
     networks:
       - smart-hive-net
     volumes:
       - ./models:/app/models:ro
       - ./ml_vision_model:/app/ml_vision_model:ro
+    environment:
+      - MQTT_BROKER=mosquitto
+    devices:
+      - "/dev/video0:/dev/video0"
+    depends_on:
+      - mosquitto
+
+  smart-hive-audio:
+    build:
+      context: .
+      dockerfile: Dockerfile.audio
+    image: smart-hive-audio:latest
+    container_name: smart-hive-audio
+    restart: unless-stopped
+    networks:
+      - smart-hive-net
+    volumes:
+      - ./models:/app/models:ro
       - ./ml_audio_model:/app/ml_audio_model:ro
     environment:
       - MQTT_BROKER=mosquitto
-      - AWS_REGION=ap-southeast-2
-      - PYTHONUNBUFFERED=1
     devices:
-      # USB Camera (for YOLO inference)
-      - "/dev/video0:/dev/video0"
-      # USB Microphone (for audio classification)
       - "/dev/snd:/dev/snd"
     depends_on:
-      - edge-app
-    # Resource limits for Raspberry Pi
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 1G
-        reservations:
-          cpus: '1'
-          memory: 512M
+      - mosquitto
 
   dashboard:
     build:
@@ -72,16 +83,12 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    volumes:
-      - .:/app
-
     networks:
       - smart-hive-net
-    # This ensures the dashboard starts after the edge app is ready
+    environment:
+      - MQTT_BROKER=mosquitto
     depends_on:
-      - edge-app
-      - smart-hive-ml
-
+      - mosquitto
 
 networks:
   smart-hive-net:
