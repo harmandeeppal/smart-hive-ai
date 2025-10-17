@@ -49,24 +49,31 @@ class VisionProcessor:
         >>> print(f"Queen detected: {result['detected']}")
     """
     
-    def __init__(self, model_path: str, confidence_threshold: float = 0.7):
+    def __init__(self, model_path: str = None, confidence_threshold: float = 0.7, use_camera: bool = True):
         """
         Initialize vision processor with YOLO model.
         
         Args:
-            model_path (str): Path to YOLO model file (vision_model.pt)
+            model_path (str): Path to YOLO model file (vision_model.pt). If None, uses config.VISION_MODEL_PATH
             confidence_threshold (float): Minimum confidence for detection (0.5-0.95)
+            use_camera (bool): Whether to initialize camera access (for edge-app only, not for vision service)
         
         Raises:
             FileNotFoundError: If model file not found
             RuntimeError: If YOLO initialization fails
         """
+        # Use config default if not provided
+        if model_path is None:
+            model_path = config.VISION_MODEL_PATH
+            
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
+        self.use_camera = use_camera
         self.enabled = True
         self.last_result = {"detected": False, "confidence": 0.0, "boxes": []}
         self.inference_time_ms = 0.0
         self.model = None
+        self.camera = None  # Only initialize if use_camera=True
         
         try:
             logger.info(f"Loading YOLO model from {model_path}")
@@ -85,6 +92,21 @@ class VisionProcessor:
             logger.error(f"❌ Failed to load YOLO model: {e}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
+        
+        # Initialize camera only if requested (edge-app only, not for vision service)
+        if self.use_camera and self.enabled:
+            try:
+                from real_components import RealVisionProcessor
+                camera_config = RealVisionProcessor()
+                self.camera = camera_config.camera
+                if self.camera and self.camera.isOpened():
+                    logger.info("✅ Camera initialized successfully")
+                else:
+                    logger.warning("⚠️  Camera not available (may be running in mock environment)")
+                    self.camera = None
+            except Exception as e:
+                logger.warning(f"⚠️  Could not initialize camera: {e}")
+                self.camera = None
     
     def process_frame(self, frame: cv2.Mat) -> Dict:
         """

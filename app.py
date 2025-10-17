@@ -664,6 +664,87 @@ class SmartHiveSystem:
     #   - ML service publishes to hive/ml/vision/results and hive/ml/audio/results
     #   - Dashboard subscribes to both telemetry and ML results
 
+    def camera_frame_publisher_loop(self):
+        """
+        Continuously capture camera frames and publish them to MQTT.
+        This allows the vision service to consume frames without direct camera access.
+        
+        NEW: Option A (MQTT) Implementation
+        - Reads frames from camera
+        - Compresses to reduce bandwidth
+        - Publishes to MQTT topic for vision service consumption
+        """
+        if not config.ENABLE_CAMERA_FRAME_PUBLISHING:
+            print("⚠️  Camera frame publishing disabled (ENABLE_CAMERA_FRAME_PUBLISHING = False)")
+            return
+        
+        if config.IS_MOCK_ENVIRONMENT:
+            print("📹 Camera frame publisher started (MOCK MODE)")
+        else:
+            print(f"📹 Camera frame publisher started")
+            print(f"   Publishing to: {config.TOPIC_CAMERA_FRAME}")
+            print(f"   Quality: {config.CAMERA_FRAME_JPEG_QUALITY}%")
+            print(f"   Scale: {config.CAMERA_FRAME_RESIZE_SCALE*100:.0f}%")
+            print(f"   FPS: {config.CAMERA_FRAME_PUBLISH_FPS}")
+        
+        frame_interval = 1.0 / config.CAMERA_FRAME_PUBLISH_FPS
+        last_publish_time = time.time()
+        
+        while self.is_running:
+            try:
+                current_time = time.time()
+                
+                # Check if enough time has passed for next publish
+                if current_time - last_publish_time < frame_interval:
+                    time.sleep(0.01)  # Sleep briefly to avoid CPU spinning
+                    continue
+                
+                # Capture frame from camera
+                if not (self.vision_processor and self.vision_processor.camera and 
+                        self.vision_processor.camera.isOpened()):
+                    continue
+                
+                ret, frame = self.vision_processor.camera.read()
+                if not ret or frame is None:
+                    continue
+                
+                # Resize frame if configured
+                if config.CAMERA_FRAME_RESIZE_SCALE < 1.0:
+                    new_width = int(frame.shape[1] * config.CAMERA_FRAME_RESIZE_SCALE)
+                    new_height = int(frame.shape[0] * config.CAMERA_FRAME_RESIZE_SCALE)
+                    frame = cv2.resize(frame, (new_width, new_height))
+                
+                # Compress frame to JPEG
+                ret, buffer = cv2.imencode(
+                    '.jpg', 
+                    frame,
+                    [cv2.IMWRITE_JPEG_QUALITY, config.CAMERA_FRAME_JPEG_QUALITY]
+                )
+                
+                if not ret:
+                    continue
+                
+                frame_bytes = buffer.tobytes()
+                
+                # Publish to MQTT
+                if config.IS_MOCK_ENVIRONMENT:
+                    if current_time % 5 < 0.1:  # Log every ~5 seconds
+                        print(f"[FRAME MOCK] Would publish {len(frame_bytes)} bytes to {config.TOPIC_CAMERA_FRAME}")
+                else:
+                    try:
+                        self.mqtt_client.publish(
+                            config.TOPIC_CAMERA_FRAME,
+                            frame_bytes,
+                            qos=config.MQTT_QOS
+                        )
+                    except Exception as e:
+                        print(f"⚠️  Failed to publish frame: {e}")
+                
+                last_publish_time = current_time
+                
+            except Exception as e:
+                print(f"❌ Error in camera frame publisher: {e}")
+                time.sleep(1)
 
     def run(self):
         """--- CORRECTION: Cleaned up run method to only manage threads ---"""
@@ -678,6 +759,7 @@ class SmartHiveSystem:
                 self.s3_snapshot_loop: (),
                 self.telemetry_loop: (),
                 self.vision_loop: (),
+                self.camera_frame_publisher_loop: (),  # NEW: Frame publishing for Option A (MQTT)
             }
             
             for target_func, args in task_map.items():

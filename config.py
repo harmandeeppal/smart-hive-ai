@@ -70,11 +70,56 @@ KEY_PATH = os.path.join(BASE_DIR, "certs", KEY_FILE_NAME)
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # -----------------------------------------------------------------------------
+# MQTT Broker Configuration (Local or Remote)
+# -----------------------------------------------------------------------------
+
+# MQTT Broker hostname/IP address
+# For Docker: "mosquitto" (service name in docker-compose)
+# For local: "localhost" or "127.0.0.1"
+# For remote: IP address or hostname
+MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
+
+# MQTT Broker port
+# 1883 = standard unencrypted MQTT
+# 8883 = TLS encrypted MQTT
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+
+# MQTT Client ID (unique identifier)
+MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "SmartHive_Python")
+
+# MQTT keepalive interval (seconds)
+MQTT_KEEPALIVE = 60
+
+# Enable TLS for MQTT connection (set False for local mosquitto)
+MQTT_USE_TLS = os.getenv("MQTT_USE_TLS", "false").lower() == "true"
+
+# MQTT username (if broker requires authentication)
+MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+
+# MQTT password (if broker requires authentication)
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+
+# QoS level for MQTT messages (0, 1, or 2)
+MQTT_QOS = 1
+
+# Connection timeout (seconds)
+MQTT_CONNECT_TIMEOUT = 10
+
+# Add certificate paths for TLS (if using AWS IoT or TLS broker)
+CA_CERT = os.path.join(BASE_DIR, "certs", "AmazonRootCA1.pem")
+CERT_FILE = CERT_PATH  # Use AWS certificates if available
+KEY_FILE = KEY_PATH     # Use AWS certificates if available
+
+# -----------------------------------------------------------------------------
 # MQTT Topics
 # -----------------------------------------------------------------------------
 
 # Topic for publishing sensor telemetry data
 TOPIC_TELEMETRY = "hive/telemetry"
+
+# Topic for publishing camera frames (Option A: Edge App → Vision Service)
+# Edge-app publishes JPEG frames here, Vision service subscribes
+TOPIC_CAMERA_FRAME = "hive/telemetry/camera/frame"
 
 # Topic for publishing AI vision detection results
 TOPIC_VISION = "hive/vision"
@@ -154,6 +199,27 @@ CAMERA_TYPE = "USB"
 CAMERA_DEVICE_INDEX = 0  # Usually 0 for the first USB camera
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
+
+# Camera Frame Publishing to MQTT (for Vision Service consumption)
+# ─────────────────────────────────────────────────────────────
+# JPEG quality for frame compression (1-100, higher = better quality)
+CAMERA_FRAME_JPEG_QUALITY = 80
+
+# Resize frames before publishing to reduce bandwidth
+# 1.0 = full resolution (640x480)
+# 0.5 = half resolution (320x240)
+CAMERA_FRAME_RESIZE_SCALE = 0.5
+
+# Frequency of frame publishing to MQTT (frames per second)
+# Higher = more frequent updates, more bandwidth
+# Recommended: 2-5 FPS for inference tasks
+CAMERA_FRAME_PUBLISH_FPS = 3
+
+# MQTT topic for camera frame stream
+TOPIC_CAMERA_FRAME = "hive/telemetry/camera/frame"
+
+# Enable/disable frame publishing to MQTT
+ENABLE_CAMERA_FRAME_PUBLISHING = True
 
 # Microphone Configuration
 # For Samson USB Microphone or system default
