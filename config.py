@@ -53,14 +53,23 @@ THING_NAME = "SmartHive_Pi"
 # -----------------------------------------------------------------------------
 
 # Certificate filenames (loaded from environment)
-CERT_FILE_NAME = os.getenv("CERT_FILE_NAME")
-KEY_FILE_NAME = os.getenv("KEY_FILE_NAME")
+CERT_FILE_NAME = os.getenv("CERT_FILE_NAME", "")
+KEY_FILE_NAME = os.getenv("KEY_FILE_NAME", "")
 
 # Construct absolute paths to certificate files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CA_PATH = os.path.join(BASE_DIR, "certs", "AmazonRootCA1.pem")
-CERT_PATH = os.path.join(BASE_DIR, "certs", CERT_FILE_NAME)
-KEY_PATH = os.path.join(BASE_DIR, "certs", KEY_FILE_NAME)
+
+# Only construct cert/key paths if filenames are provided
+if CERT_FILE_NAME:
+    CERT_PATH = os.path.join(BASE_DIR, "certs", CERT_FILE_NAME)
+else:
+    CERT_PATH = None
+
+if KEY_FILE_NAME:
+    KEY_PATH = os.path.join(BASE_DIR, "certs", KEY_FILE_NAME)
+else:
+    KEY_PATH = None
 
 # -----------------------------------------------------------------------------
 # Flask Configuration
