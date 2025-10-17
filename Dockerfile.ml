@@ -3,10 +3,12 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for audio processing
+# Install system dependencies for audio processing and OpenCV
 RUN apt-get update && apt-get install -y \
     libsndfile1 \
     alsa-utils \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy ML models
