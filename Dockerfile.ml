@@ -4,12 +4,22 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install system dependencies for audio processing
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     alsa-utils \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Copy ML models
+# Copy requirements first for better caching
+COPY requirements-ml.txt .
+
+# Install Python dependencies with headless OpenCV first
+# Using --no-cache-dir to minimize image size during build
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir opencv-python-headless==4.8.0.76 && \
+    pip install --no-cache-dir -r requirements-ml.txt && \
+    find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# Copy ML models (after dependencies to leverage layer caching)
 COPY models/ ./models/
 
 # Copy ML processor code
@@ -20,17 +30,9 @@ COPY ml_audio_model/ ./ml_audio_model/
 COPY config.py .
 COPY ml_inference_service.py .
 
-# Copy ML-specific requirements
-COPY requirements-ml.txt .
-
-# Install Python dependencies
-# Install opencv-python-headless first with --force-reinstall to prevent GUI version from being installed as dependency
-RUN pip install --no-cache-dir opencv-python-headless==4.8.0.76 && \
-    pip install --no-cache-dir --no-build-isolation -r requirements-ml.txt
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+    CMD python -c "import cv2; print('OK')" || exit 1
 
 # Run the ML inference service
 CMD ["python", "ml_inference_service.py"]
