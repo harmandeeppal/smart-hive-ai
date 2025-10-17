@@ -8,4 +8,7 @@ tensorflow
 adafruit-circuitpython-sht31d
 adafruit-circuitpython-mpu6050
 sounddevice
-pytz  
+pytz
+ultralytics
+librosa
+scikit-learn

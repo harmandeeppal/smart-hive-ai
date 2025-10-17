@@ -182,3 +182,63 @@ ENABLE_DYNAMODB = True
 
 # AWS region where DynamoDB table is located
 AWS_REGION = "ap-southeast-2"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ML MODELS CONFIGURATION (NEW)
+# ─────────────────────────────────────────────────────────────────────────────
+# Machine Learning models for vision and audio-based queen bee detection
+# All settings can be tuned without modifying code
+
+# VISION MODEL (YOLO Queen Bee Detection)
+# ─────────────────────────────────────────
+# Enable/disable vision model entirely
+ENABLE_VISION_MODEL = True
+
+# Path to YOLO model file (PyTorch format)
+VISION_MODEL_PATH = "models/vision_model.pt"
+
+# Minimum confidence threshold for detection (0.0-1.0)
+# Higher = more conservative, fewer false positives
+# Recommended: 0.6-0.8
+VISION_CONFIDENCE_THRESHOLD = 0.7
+
+# Process every N frames (balance accuracy vs CPU)
+# 1 = every frame (most accurate, ~20 FPS)
+# 3 = every 3rd frame (balanced, ~6-7 FPS)
+# 5 = every 5th frame (fastest, ~4 FPS)
+VISION_PROCESS_EVERY_N_FRAMES = 3
+
+# Inference timeout (seconds) - kill if takes longer than this
+VISION_FRAME_TIMEOUT_SEC = 5
+
+# MQTT topic for vision results
+TOPIC_VISION_RESULTS = "hive/vision/detection"
+
+# AUDIO MODEL (ML-based Queen Bee Sound Classification)
+# ─────────────────────────────────────────────────────
+# Enable/disable audio model entirely
+ENABLE_AUDIO_MODEL = True
+
+# Path to pre-trained audio classification model
+# Audio model path (scikit-learn classifier, pre-trained)
+# Located in ml_audio_model directory
+AUDIO_MODEL_PATH = "models/audio_model.pkl"
+
+# Audio sampling rate in Hz (must match model training)
+AUDIO_SAMPLE_RATE = 22050
+
+# Default recording duration in seconds (can be overridden per recording)
+AUDIO_RECORD_DURATION_SEC = 30
+
+# Minimum confidence for classification (0.0-1.0)
+# Higher = more confident predictions
+AUDIO_CONFIDENCE_THRESHOLD = 0.6
+
+# Save audio recordings to disk
+AUDIO_SAVE_RECORDINGS = False
+
+# Directory to save audio files if enabled
+AUDIO_RECORDINGS_DIR = "audio_recordings"
+
+# MQTT topic for audio results
+TOPIC_AUDIO_RESULTS = "hive/audio/classification"

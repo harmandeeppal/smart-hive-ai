@@ -52,6 +52,10 @@ if config.IS_MOCK_ENVIRONMENT:
 else:
     from real_components import RealBME280, RealLIS3DH, RealVisionProcessor, RealINMP441
 
+# NOTE: ML models now run in separate microservice (smart-hive-ml container)
+# Previously: from ml_vision_model.vision_processor import VisionProcessor
+# Previously: from ml_audio_model.audio_processor import AudioProcessor
+
 
 
 class SmartHiveSystem:
@@ -59,15 +63,18 @@ class SmartHiveSystem:
     Main controller class for the Smart Hive AI monitoring system.
     
     This class orchestrates all components of the smart hive system including sensor
-    data collection, AWS IoT communication, DynamoDB persistence, and AI-powered
-    vision processing for queen bee detection.
+    data collection, AWS IoT communication, DynamoDB persistence, and video streaming.
+    
+    Note: ML inference (vision and audio detection) runs in a separate microservice
+    (ml_inference_service.py) for resource isolation. Communication happens via MQTT
+    on topics: hive/ml/vision/results and hive/ml/audio/results
     
     Attributes:
         is_running (bool): System operational status flag
         temp_humidity_sensor: BME280 sensor instance for temperature and humidity
         vibration_sensor: LIS3DH sensor instance for vibration monitoring
         sound_sensor: INMP441 sensor instance for audio analysis
-        vision_processor: AI vision processor for queen bee detection
+        vision_processor: Video processor for camera frame capture
         mqtt_client: MQTT client for AWS IoT Core communication
         table: DynamoDB table resource for data persistence
         sensor_events (dict): Threading events for sensor enable/disable control
@@ -111,6 +118,12 @@ class SmartHiveSystem:
         }
         for event in self.sensor_events.values():
             event.set()
+
+        # NOTE: ML processors now run in separate microservice
+        # No longer initialized in edge app
+        # ML models communicate via MQTT topics:
+        #   hive/ml/vision/results - YOLO detections
+        #   hive/ml/audio/results - Audio classifications
 
         self.flask_app = Flask(__name__)
         self.setup_routes()
@@ -640,12 +653,26 @@ class SmartHiveSystem:
         # If IoU is below threshold, consider them different queens
         return iou < threshold
 
+    # NOTE: ML inference loops removed - now run in separate microservice
+    # Previously:
+    #   def ml_vision_loop(self) - YOLO v8 detection (now in ml_inference_service.py)
+    #   def ml_audio_loop(self) - Audio classification (now in ml_inference_service.py)
+    # 
+    # Communication:
+    #   - Edge app publishes telemetry to hive/telemetry
+    #   - ML service subscribes to vision processor output
+    #   - ML service publishes to hive/ml/vision/results and hive/ml/audio/results
+    #   - Dashboard subscribes to both telemetry and ML results
+
+
     def run(self):
         """--- CORRECTION: Cleaned up run method to only manage threads ---"""
         print("Starting all system threads...")
         all_threads = []
         try:
             # Create and start all threads
+            # NOTE: ML loops (ml_vision_loop, ml_audio_loop) moved to separate microservice
+            # See ml_inference_service.py for ML inference logic
             task_map = {
                 self.start_video_server: (),
                 self.s3_snapshot_loop: (),

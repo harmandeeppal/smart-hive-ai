@@ -115,9 +115,11 @@ def setup_mqtt():
         """
         if rc == 0:
             print("Dashboard MQTT client connected successfully.")
-            # Subscribe to telemetry and vision topics
+            # Subscribe to telemetry, vision, and ML topics
             client.subscribe(config.TOPIC_TELEMETRY)
             client.subscribe(config.TOPIC_VISION)
+            client.subscribe(config.TOPIC_VISION_RESULTS)
+            client.subscribe(config.TOPIC_AUDIO_RESULTS)
         else:
             print(f"Dashboard MQTT failed to connect, reason code {rc}")
 
@@ -142,6 +144,10 @@ def setup_mqtt():
                 socketio.emit('telemetry_update', payload)
             elif msg.topic == config.TOPIC_VISION:
                 socketio.emit('vision_update', payload)
+            elif msg.topic == config.TOPIC_VISION_RESULTS:
+                socketio.emit('vision_ml_update', payload)
+            elif msg.topic == config.TOPIC_AUDIO_RESULTS:
+                socketio.emit('audio_ml_update', payload)
         except json.JSONDecodeError:
             print(f"Could not decode JSON payload: {msg.payload}")
         except Exception as e:
@@ -196,6 +202,41 @@ def handle_toggle_sensor(data):
     control_payload = json.dumps({"sensor": data['sensor'], "state": data['state']})
     result = mqtt_client.publish("hive/control", control_payload, qos=1)
     print(f"Published control message with result: {result}")
+
+
+@socketio.on('toggle_ml_sensor')
+def handle_toggle_ml_sensor(data):
+    """
+    Handle ML model toggle commands from dashboard UI.
+    
+    Controls ML vision and audio processors through MQTT control topic.
+    
+    Args:
+        data (dict): Toggle command with ML sensor name and state
+                    Example: {"sensor": "ml_vision", "state": "on"}
+    """
+    print(f"Received ML sensor toggle command: {data}")
+    
+    # Publish ML control command to MQTT control topic
+    control_payload = json.dumps({"sensor": data['sensor'], "state": data['state']})
+    result = mqtt_client.publish("hive/control", control_payload, qos=1)
+    print(f"Published ML control message with result: {result}")
+
+
+@socketio.on('request_ml_status')
+def handle_request_ml_status():
+    """
+    Handle ML status request from dashboard.
+    
+    Emits current ML processor status to requesting client.
+    """
+    ml_status = {
+        "vision_enabled": config.ENABLE_VISION_MODEL if hasattr(config, 'ENABLE_VISION_MODEL') else False,
+        "audio_enabled": config.ENABLE_AUDIO_MODEL if hasattr(config, 'ENABLE_AUDIO_MODEL') else False,
+        "vision_model_path": config.VISION_MODEL_PATH if hasattr(config, 'VISION_MODEL_PATH') else "",
+        "audio_model_path": config.AUDIO_MODEL_PATH if hasattr(config, 'AUDIO_MODEL_PATH') else "",
+    }
+    socketio.emit('ml_status_response', ml_status)
 
 
 @app.route('/')

@@ -1,0 +1,21 @@
+# ML Inference Service Requirements
+# Lightweight dependencies for YOLO v8 and Audio ML processing
+# This is a subset of requirements.txt optimized for the ML microservice
+
+# Core ML libraries
+ultralytics==8.0.0              # YOLOv8 object detection
+scikit-learn==1.3.0             # Machine learning models and algorithms
+librosa==0.10.0                 # Audio feature extraction and analysis
+
+# Dependencies
+numpy==1.24.3                   # Numerical computing
+opencv-python==4.8.0.74         # Computer vision (for frame processing)
+sounddevice==0.4.5              # Microphone recording
+
+# AWS and MQTT
+boto3==1.26.137                 # AWS SDK (for potential future AWS features)
+paho-mqtt==1.6.1                # MQTT client for AWS IoT Core
+
+# Utilities
+python-dotenv==1.0.0            # Environment variable management
+pytz==2023.3                     # Timezone support
