@@ -12,20 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first for better caching
 COPY requirements-ml.txt .
 
-# Install Python dependencies with headless OpenCV first
-# Using --no-cache-dir to minimize image size during build
-# CRITICAL: ultralytics will try to install opencv-python, so we need to:
-# 1. Install headless OpenCV first
-# 2. Install all requirements (which may pull in GUI opencv)
-# 3. Uninstall GUI version and force-reinstall headless version
-# 4. Pin numpy to 1.24.3 (OpenCV 4.8.0.76 requires NumPy 1.x, not 2.x)
+# Install Python dependencies with headless OpenCV
+# Simplified for faster builds on Raspberry Pi
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir 'numpy==1.24.3' && \
-    pip install --no-cache-dir 'opencv-python-headless==4.8.0.76' && \
-    pip install --no-cache-dir -r requirements-ml.txt || true && \
-    pip uninstall -y opencv-python && \
+    pip install --no-cache-dir 'numpy==1.24.3' 'opencv-python-headless==4.8.0.76' && \
+    pip install --no-cache-dir -r requirements-ml.txt --no-deps && \
+    pip install --no-cache-dir ultralytics scikit-learn librosa boto3 paho-mqtt python-dotenv && \
+    pip uninstall -y opencv-python 2>/dev/null || true && \
     pip install --no-cache-dir --force-reinstall 'numpy==1.24.3' 'opencv-python-headless==4.8.0.76' && \
-    find /usr/local -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+    rm -rf /root/.cache/pip/* /tmp/* /var/tmp/*
 
 # Copy ML models (after dependencies to leverage layer caching)
 COPY models/ ./models/
