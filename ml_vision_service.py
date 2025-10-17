@@ -78,7 +78,13 @@ class VisionInferenceService:
     
     def setup_mqtt(self):
         """Setup MQTT client connection"""
-        self.mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id=self.client_id)
+        # Use VERSION1 for compatibility with older paho-mqtt versions
+        try:
+            self.mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, client_id=self.client_id)
+        except AttributeError:
+            # Fallback for older paho-mqtt that doesn't have CallbackAPIVersion
+            self.mqtt_client = mqtt_client.Client(client_id=self.client_id)
+        
         self.mqtt_client.on_connect = self.on_connect
         self.mqtt_client.on_message = self.on_message
         self.mqtt_client.on_disconnect = self.on_disconnect
