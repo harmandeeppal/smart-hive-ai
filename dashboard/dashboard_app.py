@@ -43,7 +43,7 @@ import requests
 from flask import Response
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from paho.mqtt import client as mqtt_client
+from paho.mqtt import client as mqtt_client_module
 
 # Import main configuration from parent directory
 import sys
@@ -57,7 +57,7 @@ app.config['SECRET_KEY'] = config.SECRET_KEY
 socketio = SocketIO(app, async_mode='threading')
 
 # Initialize MQTT client for telemetry subscription
-mqtt_client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id="SmartHive_Dashboard")
+mqtt_client = mqtt_client_module.Client(mqtt_client_module.CallbackAPIVersion.VERSION2, client_id="SmartHive_Dashboard")
 
 
 @app.route('/video_feed')
@@ -147,17 +147,15 @@ def setup_mqtt():
             print(f"   Payload: {payload}")
             
             # Route message to appropriate WebSocket event
-            # CRITICAL: Must emit from within Flask app context for threading safety
-            with app.app_context():
-                if msg.topic == config.TOPIC_TELEMETRY:
-                    print("   → Emitting 'telemetry_update' via Socket.IO")
-                    socketio.emit('telemetry_update', payload, namespace='/')
-                elif msg.topic == config.TOPIC_VISION:
-                    socketio.emit('vision_update', payload, namespace='/')
-                elif msg.topic == config.TOPIC_VISION_RESULTS:
-                    socketio.emit('vision_ml_update', payload, namespace='/')
-                elif msg.topic == config.TOPIC_AUDIO_RESULTS:
-                    socketio.emit('audio_ml_update', payload, namespace='/')
+            if msg.topic == config.TOPIC_TELEMETRY:
+                print("   → Emitting 'telemetry_update' via Socket.IO")
+                socketio.emit('telemetry_update', payload, namespace='/')
+            elif msg.topic == config.TOPIC_VISION:
+                socketio.emit('vision_update', payload, namespace='/')
+            elif msg.topic == config.TOPIC_VISION_RESULTS:
+                socketio.emit('vision_ml_update', payload, namespace='/')
+            elif msg.topic == config.TOPIC_AUDIO_RESULTS:
+                socketio.emit('audio_ml_update', payload, namespace='/')
         except json.JSONDecodeError:
             print(f"❌ Could not decode JSON payload: {msg.payload}")
         except Exception as e:
