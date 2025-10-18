@@ -306,11 +306,187 @@ document.addEventListener('DOMContentLoaded', () => {
         state ? button.classList.remove('off') : button.classList.add('off');
     }
 
+    // --- AUDIO WAVEFORM VISUALIZATION ---
+    const audioCanvas = document.getElementById('audio-waveform');
+    const audioCtx = audioCanvas ? audioCanvas.getContext('2d') : null;
+    let waveformData = new Array(100).fill(0); // 100 data points
+    let animationFrameId = null;
+
+    function drawWaveform() {
+        if (!audioCtx || !audioCanvas) return;
+
+        const width = audioCanvas.width;
+        const height = audioCanvas.height;
+        const centerY = height / 2;
+
+        // Clear canvas
+        audioCtx.fillStyle = '#0f0f1e';
+        audioCtx.fillRect(0, 0, width, height);
+
+        // Draw grid lines
+        audioCtx.strokeStyle = '#1a1a3e';
+        audioCtx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (height / 4) * i;
+            audioCtx.beginPath();
+            audioCtx.moveTo(0, y);
+            audioCtx.lineTo(width, y);
+            audioCtx.stroke();
+        }
+
+        // Draw waveform
+        audioCtx.strokeStyle = '#00ff88';
+        audioCtx.lineWidth = 2;
+        audioCtx.beginPath();
+
+        const step = width / waveformData.length;
+        for (let i = 0; i < waveformData.length; i++) {
+            const x = i * step;
+            const amplitude = waveformData[i] * (height / 2) * 0.8; // Scale amplitude
+            const y = centerY + amplitude;
+
+            if (i === 0) {
+                audioCtx.moveTo(x, y);
+            } else {
+                audioCtx.lineTo(x, y);
+            }
+        }
+        audioCtx.stroke();
+
+        // Draw center line
+        audioCtx.strokeStyle = '#2a2a4e';
+        audioCtx.lineWidth = 1;
+        audioCtx.beginPath();
+        audioCtx.moveTo(0, centerY);
+        audioCtx.lineTo(width, centerY);
+        audioCtx.stroke();
+    }
+
+    function updateAudioLevel(soundDb) {
+        // Update waveform data with simulated wave based on sound level
+        waveformData.shift();
+        const normalizedDb = Math.min(Math.max(soundDb || 0, 0), 100) / 100;
+        const waveValue = Math.sin(Date.now() / 100) * normalizedDb;
+        waveformData.push(waveValue);
+
+        // Update level bars
+        const levelBars = document.querySelectorAll('.level-bar');
+        const activeBarCount = Math.floor(normalizedDb * levelBars.length);
+        
+        levelBars.forEach((bar, index) => {
+            if (index < activeBarCount) {
+                bar.classList.add('active');
+                bar.style.height = `${10 + (index * 9)}%`;
+            } else {
+                bar.classList.remove('active');
+                bar.style.height = '5%';
+            }
+        });
+
+        // Update dB value
+        const dbValue = document.getElementById('audio-db-value');
+        if (dbValue && soundDb !== undefined) {
+            dbValue.textContent = `${soundDb.toFixed(1)} dB`;
+        }
+
+        drawWaveform();
+    }
+
+    // Animate waveform continuously
+    function animateWaveform() {
+        drawWaveform();
+        animationFrameId = requestAnimationFrame(animateWaveform);
+    }
+
+    // Start animation if canvas exists
+    if (audioCanvas) {
+        animateWaveform();
+    }
+
+    // Update sound visualization when telemetry arrives
+    socket.on('telemetry_update', data => {
+        if (data.sound_db !== undefined) {
+            updateAudioLevel(data.sound_db);
+        }
+    });
+
     // --- AUDIO RECORDING BUTTON ---
     document.getElementById('record-audio-btn')?.addEventListener('click', () => {
         console.log('Audio recording button clicked');
+        
+        const recordBtn = document.getElementById('record-audio-btn');
+        const progressDiv = document.getElementById('recording-progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const statusSpan = document.getElementById('audio-ml-status');
+        
+        // Disable button and show progress
+        recordBtn.disabled = true;
+        recordBtn.textContent = '🎙️ Recording...';
+        progressDiv.style.display = 'block';
+        statusSpan.textContent = 'Recording in progress...';
+        
+        // Trigger recording via Socket.IO
         socket.emit('trigger_audio_recording', { duration: 60 });
-        document.getElementById('audio-ml-value').textContent = 'Starting recording...';
-        document.getElementById('audio-ml-status').textContent = 'Recording...';
+        
+        // Animate progress bar
+        let elapsed = 0;
+        const duration = 60; // seconds
+        const interval = setInterval(() => {
+            elapsed += 1;
+            const percentage = (elapsed / duration) * 100;
+            progressFill.style.width = `${percentage}%`;
+            progressText.textContent = `Recording: ${elapsed}s / ${duration}s`;
+            
+            if (elapsed >= duration) {
+                clearInterval(interval);
+                statusSpan.textContent = 'Processing...';
+                progressText.textContent = 'Processing audio...';
+            }
+        }, 1000);
+        
+        // Reset after 65 seconds (60s recording + 5s processing buffer)
+        setTimeout(() => {
+            recordBtn.disabled = false;
+            recordBtn.textContent = '🎤 Record 1 Minute & Analyze';
+            progressDiv.style.display = 'none';
+            progressFill.style.width = '0%';
+        }, 65000);
+    });
+
+    // --- AUDIO CLASSIFICATION UPDATE ---
+    socket.on('audio_classification_update', data => {
+        console.log('Received audio classification:', data);
+        
+        const classificationSpan = document.getElementById('audio-classification');
+        const confidenceSpan = document.getElementById('audio-confidence');
+        const statusSpan = document.getElementById('audio-ml-status');
+        const lastAnalysisSpan = document.getElementById('audio-last-analysis');
+        
+        if (data.results) {
+            const { classification, confidence, status } = data.results;
+            
+            // Update classification with color coding
+            if (classification) {
+                classificationSpan.textContent = classification === 'queen_present' 
+                    ? 'Queen Present' 
+                    : 'Queen Absent';
+                classificationSpan.className = 'result-value ' + classification.replace('_', '-');
+            }
+            
+            // Update confidence
+            if (confidence !== undefined) {
+                confidenceSpan.textContent = `${(confidence * 100).toFixed(1)}%`;
+            }
+            
+            // Update status
+            if (status) {
+                statusSpan.textContent = status === 'complete' ? 'Analysis Complete' : status;
+            }
+            
+            // Update last analysis time
+            lastAnalysisSpan.textContent = 'Just now';
+        }
     });
 });
+

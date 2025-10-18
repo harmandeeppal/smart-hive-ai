@@ -84,14 +84,48 @@
             <button class="toggle-btn" data-sensor="vision">Toggle: ON</button>
         </div>
 
-        <!-- AI Audio Analysis Card (NEW) -->
+        <!-- AI Audio Analysis Card (NEW - Enhanced with Waveform) -->
         <div class="card" id="audio-ml-card">
-            <h2>AI Audio Analysis</h2>
-            <p class="sensor-value" id="audio-ml-value">Ready to record</p>
-            <div class="audio-ml-status">
-                <span>Classification: <strong id="audio-classification">--</strong></span>
-                <span>Confidence: <strong id="audio-confidence">--</strong></span>
+            <h2>🎤 AI Audio Analysis - Live Monitoring</h2>
+            
+            <!-- Audio Waveform Visualization -->
+            <div class="audio-visualizer-container">
+                <canvas id="audio-waveform" width="600" height="120"></canvas>
+                <div class="audio-level-indicator">
+                    <span>Sound Level:</span>
+                    <div class="audio-level-bars" id="audio-level-bars">
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                        <div class="level-bar"></div>
+                    </div>
+                    <span id="audio-db-value">-- dB</span>
+                </div>
             </div>
+
+            <!-- ML Classification Results -->
+            <div class="audio-ml-results">
+                <div class="result-item">
+                    <span class="result-label">Classification:</span>
+                    <span class="result-value" id="audio-classification">Waiting for analysis...</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Confidence:</span>
+                    <span class="result-value" id="audio-confidence">--</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Status:</span>
+                    <span class="result-value" id="audio-ml-status">Idle</span>
+                </div>
+            </div>
+
+            <!-- Recording Controls -->
             <div class="audio-ml-controls">
                 <button id="record-audio-btn" class="record-btn">
                     🎤 Record 1 Minute & Analyze
@@ -103,7 +137,7 @@
                     <span id="progress-text">Recording: 0s / 60s</span>
                 </div>
             </div>
-            <p class="status-text">Status: <span id="audio-ml-status">Idle</span></p>
+            
             <p class="action-text">Last Analysis: <span id="audio-last-analysis">Never</span></p>
         </div>
     </main>

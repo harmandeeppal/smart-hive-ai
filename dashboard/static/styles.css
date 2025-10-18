@@ -62,7 +62,7 @@ header h1 { margin: 0; font-size: 1.5rem; }
 .status-text span, .action-text span, .trend-text span { font-weight: 600; }
 
 /* AI Vision Card Styles */
-#video-card { grid-column: span 2; /* Make video card wider if possible */ }
+#video-card { grid-column: span 2; /* Make video card wider */ }
 #video-card img { border-radius: 4px; background-color: #000; }
 .ai-status { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: #606770; }
 #ai-status-text.detected { color: #28a745; font-weight: bold; }
@@ -72,14 +72,166 @@ header h1 { margin: 0; font-size: 1.5rem; }
 .toggle-btn:hover { background-color: #365899; }
 .toggle-btn.off { background-color: #6c757d; }
 .toggle-btn.off:hover { background-color: #5a6268; }
-/* Audio ML Card Styles */
-#audio-ml-card { grid-column: span 1; }
-.audio-ml-status { display: flex; justify-content: space-between; margin: 1rem 0; font-size: 0.9rem; color: #606770; }
+
+/* Audio ML Card Styles - ENHANCED */
+#audio-ml-card { 
+    grid-column: span 2; /* Same width as video card */
+    min-height: 400px; /* Ensure consistent height */
+}
+
+/* Audio Visualizer Container */
+.audio-visualizer-container {
+    background-color: #1a1a2e;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+/* Audio Waveform Canvas */
+#audio-waveform {
+    width: 100%;
+    height: 120px;
+    background-color: #0f0f1e;
+    border-radius: 4px;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+/* Audio Level Indicator */
+.audio-level-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #ffffff;
+    font-size: 0.9rem;
+    gap: 1rem;
+}
+
+/* Audio Level Bars */
+.audio-level-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 40px;
+    flex: 1;
+}
+
+.level-bar {
+    flex: 1;
+    background: linear-gradient(to top, #28a745 0%, #ffc107 50%, #dc3545 100%);
+    border-radius: 2px;
+    min-width: 8px;
+    height: 5%;
+    transition: height 0.1s ease-out;
+    opacity: 0.3;
+}
+
+.level-bar.active {
+    opacity: 1;
+}
+
+#audio-db-value {
+    font-weight: 600;
+    min-width: 60px;
+    text-align: right;
+    color: #00ff88;
+}
+
+/* ML Classification Results */
+.audio-ml-results {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.result-item {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.result-label {
+    font-size: 0.8rem;
+    color: #606770;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.result-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1c1e21;
+}
+
+#audio-classification {
+    color: #4267B2;
+}
+
+#audio-classification.queen-present {
+    color: #28a745;
+}
+
+#audio-classification.queen-absent {
+    color: #dc3545;
+}
+
+/* Audio ML Controls */
 .audio-ml-controls { margin: 1rem 0; }
-.record-btn { background-color: #dc3545; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; width: 100%; font-size: 1rem; font-weight: 600; }
-.record-btn:hover { background-color: #c82333; }
-.record-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+.record-btn { 
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white; 
+    border: none; 
+    padding: 1rem 1.5rem; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    transition: all 0.3s; 
+    width: 100%; 
+    font-size: 1.1rem; 
+    font-weight: 600;
+    box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);
+}
+.record-btn:hover { 
+    background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+    box-shadow: 0 6px 8px rgba(220, 53, 69, 0.4);
+    transform: translateY(-2px);
+}
+.record-btn:active {
+    transform: translateY(0);
+}
+.record-btn:disabled { 
+    background: #6c757d; 
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Recording Progress */
 .recording-progress { margin-top: 1rem; }
-.progress-bar { width: 100%; height: 20px; background-color: #e9ecef; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
-.progress-fill { height: 100%; background-color: #dc3545; border-radius: 10px; width: 0%; transition: width 1s linear; }
-#progress-text { font-size: 0.9rem; color: #606770; text-align: center; display: block; }
+.progress-bar { 
+    width: 100%; 
+    height: 24px; 
+    background-color: #e9ecef; 
+    border-radius: 12px; 
+    overflow: hidden; 
+    margin-bottom: 0.5rem;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+.progress-fill { 
+    height: 100%; 
+    background: linear-gradient(90deg, #dc3545 0%, #ff6b7a 100%);
+    border-radius: 12px; 
+    width: 0%; 
+    transition: width 1s linear;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
+}
+#progress-text { 
+    font-size: 0.9rem; 
+    color: #606770; 
+    text-align: center; 
+    display: block;
+    font-weight: 600;
+}
