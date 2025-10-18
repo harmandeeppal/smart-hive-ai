@@ -129,6 +129,10 @@ def setup_mqtt():
         else:
             print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
 
+    def on_subscribe(client, userdata, mid, granted_qos, properties=None):
+        """Callback when subscription is acknowledged by broker."""
+        print(f"🔔 Subscription confirmed by broker: mid={mid}, QoS={granted_qos}")
+
     def on_message(client, userdata, msg):
         """
         Callback for incoming MQTT messages.
@@ -165,6 +169,7 @@ def setup_mqtt():
             
     # Assign callbacks
     mqtt_client.on_connect = on_connect
+    mqtt_client.on_subscribe = on_subscribe
     mqtt_client.on_message = on_message
     
     # Connect to local MQTT broker (Mosquitto in Docker)
