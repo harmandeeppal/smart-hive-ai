@@ -113,15 +113,21 @@ def setup_mqtt():
             rc: Connection result code
             properties: Connection properties (MQTT v5)
         """
+        print(f"🔗 on_connect callback fired! RC={rc}")
         if rc == 0:
-            print("Dashboard MQTT client connected successfully.")
+            print("✅ Dashboard MQTT client connected successfully.")
             # Subscribe to telemetry, vision, and ML topics
+            print(f"📡 Subscribing to: {config.TOPIC_TELEMETRY}")
             client.subscribe(config.TOPIC_TELEMETRY)
+            print(f"📡 Subscribing to: {config.TOPIC_VISION}")
             client.subscribe(config.TOPIC_VISION)
+            print(f"📡 Subscribing to: {config.TOPIC_VISION_RESULTS}")
             client.subscribe(config.TOPIC_VISION_RESULTS)
+            print(f"📡 Subscribing to: {config.TOPIC_AUDIO_RESULTS}")
             client.subscribe(config.TOPIC_AUDIO_RESULTS)
+            print("✅ All MQTT subscriptions complete")
         else:
-            print(f"Dashboard MQTT failed to connect, reason code {rc}")
+            print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
 
     def on_message(client, userdata, msg):
         """
@@ -135,12 +141,14 @@ def setup_mqtt():
             userdata: User data (unused)
             msg: MQTT message with topic and payload
         """
-        print(f"Received message on topic: {msg.topic}")
+        print(f"📥 Received MQTT message on topic: {msg.topic}")
         try:
             payload = json.loads(msg.payload.decode())
+            print(f"   Payload: {payload}")
             
             # Route message to appropriate WebSocket event
             if msg.topic == config.TOPIC_TELEMETRY:
+                print("   → Emitting 'telemetry_update' via Socket.IO")
                 socketio.emit('telemetry_update', payload)
             elif msg.topic == config.TOPIC_VISION:
                 socketio.emit('vision_update', payload)
@@ -149,9 +157,9 @@ def setup_mqtt():
             elif msg.topic == config.TOPIC_AUDIO_RESULTS:
                 socketio.emit('audio_ml_update', payload)
         except json.JSONDecodeError:
-            print(f"Could not decode JSON payload: {msg.payload}")
+            print(f"❌ Could not decode JSON payload: {msg.payload}")
         except Exception as e:
-            print(f"An error occurred in on_message: {e}")
+            print(f"❌ An error occurred in on_message: {e}")
             
     # Assign callbacks
     mqtt_client.on_connect = on_connect
