@@ -233,16 +233,19 @@ class AudioProcessor:
     
     def extract_features(self, audio_data: np.ndarray) -> Optional[np.ndarray]:
         """
-        Extract MFCC features from audio matching training configuration.
+        Extract MFCC features from audio EXACTLY matching training configuration.
         
-        Model was trained with 52 MFCC coefficients, producing 312 features:
-        - 52 MFCC coefficients × 6 statistics = 312 features
+        Training used: 13 MFCC × 3 types (MFCC, Delta, Delta²) × 8 statistics = 312 features
         
-        Extracts:
-        - 52 MFCC coefficients (mean + std)
-        - 52 Delta coefficients (mean + std)
-        - 52 Delta-Delta coefficients (mean + std)
-        Total: 312 features
+        8 Statistics per coefficient:
+        1. Mean
+        2. Std
+        3. Min
+        4. Max
+        5. Median
+        6. 25th percentile
+        7. 75th percentile
+        8. Variance
         
         Args:
             audio_data (np.ndarray): Audio time series
@@ -253,34 +256,36 @@ class AudioProcessor:
         try:
             import librosa
             
-            # Extract 52 MFCC coefficients (matching training)
+            # Extract 13 MFCC coefficients (matching training)
             mfcc = librosa.feature.mfcc(
                 y=audio_data,
                 sr=self.sample_rate,
-                n_mfcc=52  # Changed from 13 to 52 to match training
+                n_mfcc=13,  # Training used 13, not 52!
+                n_fft=2048,
+                hop_length=512
             )
             
-            # Compute statistics: mean and std for each coefficient
-            mfcc_mean = np.mean(mfcc, axis=1)   # Shape: (52,)
-            mfcc_std = np.std(mfcc, axis=1)     # Shape: (52,)
-            
             # Extract delta and delta-delta
-            delta = librosa.feature.delta(mfcc)
-            delta_mean = np.mean(delta, axis=1)       # Shape: (52,)
-            delta_std = np.std(delta, axis=1)         # Shape: (52,)
-            
+            delta = librosa.feature.delta(mfcc, order=1)
             delta_delta = librosa.feature.delta(mfcc, order=2)
-            delta_delta_mean = np.mean(delta_delta, axis=1)  # Shape: (52,)
-            delta_delta_std = np.std(delta_delta, axis=1)    # Shape: (52,)
             
-            # Combine all features: 52 + 52 + 52 + 52 + 52 + 52 = 312 features
-            features = np.concatenate([
-                mfcc_mean, mfcc_std,
-                delta_mean, delta_std,
-                delta_delta_mean, delta_delta_std
-            ])
+            # Compute 8 statistics for each coefficient track
+            features = []
+            for mat in (mfcc, delta, delta_delta):
+                for coeff_track in mat:  # Each row is one coefficient over time
+                    features.extend([
+                        np.mean(coeff_track),
+                        np.std(coeff_track),
+                        np.min(coeff_track),
+                        np.max(coeff_track),
+                        np.median(coeff_track),
+                        np.percentile(coeff_track, 25),
+                        np.percentile(coeff_track, 75),
+                        np.var(coeff_track)
+                    ])
             
-            logger.debug(f"Extracted {len(features)} features (52 MFCC × 6 stats)")
+            features = np.array(features, dtype=np.float32)
+            logger.debug(f"Extracted {len(features)} features (13 MFCC × 3 types × 8 stats)")
             return features.reshape(1, -1)  # Return as 2D array for model
         
         except ImportError:
