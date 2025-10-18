@@ -99,6 +99,13 @@ class VisionProcessor:
                 logger.warning(f"Using generic YOLOv8n instead of queen-specific model")
                 logger.warning(f"Original model path was: {model_path}")
                 
+                # FIX: PyTorch 2.6+ requires explicit safe globals for ultralytics models
+                # Add ultralytics classes to PyTorch's trusted class allowlist
+                if hasattr(torch.serialization, 'add_safe_globals'):
+                    import ultralytics.nn.tasks
+                    torch.serialization.add_safe_globals([ultralytics.nn.tasks.DetectionModel])
+                    logger.info("✅ Added ultralytics safe globals for PyTorch 2.6+")
+                
                 # Use pretrained model (will auto-download on first run)
                 self.model = YOLO('yolov8n.pt')
                 logger.info("✅ YOLO model loaded successfully (pretrained YOLOv8n)")
