@@ -65,24 +65,12 @@ class AudioInferenceService:
         self.mqtt_client.on_connect = self.on_connect
         self.mqtt_client.on_message = self.on_message
         
-        # Setup TLS
+        # Connect to local mosquitto broker (no TLS)
         try:
-            self.mqtt_client.tls_set(
-                ca_certs=config.CA_CERT,
-                certfile=config.CERT_FILE,
-                keyfile=config.KEY_FILE,
-                cert_reqs=ssl.CERT_REQUIRED,
-                tls_version=ssl.PROTOCOL_TLSv1_2,
-                ciphers=None
-            )
-            self.mqtt_client.tls_insecure_set(False)
-        except Exception as e:
-            logger.warning(f"TLS setup failed: {e}")
-        
-        try:
+            logger.info(f"Connecting to local MQTT broker: {self.mqtt_broker}:{self.mqtt_port}")
             self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port, keepalive=60)
             self.mqtt_client.loop_start()
-            logger.info(f"✅ MQTT connected to {self.mqtt_broker}")
+            logger.info(f"✅ MQTT connected to {self.mqtt_broker}:{self.mqtt_port}")
         except Exception as e:
             logger.error(f"❌ MQTT connection failed: {e}")
     
