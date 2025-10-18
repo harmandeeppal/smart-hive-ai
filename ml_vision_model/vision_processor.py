@@ -77,11 +77,21 @@ class VisionProcessor:
         
         try:
             logger.info(f"Loading YOLO model from {model_path}")
+            # Check if file exists before trying to load
+            import os
+            if not os.path.exists(model_path):
+                logger.error(f"❌ Model file not found: {model_path}")
+                logger.warning("Checked paths:")
+                logger.warning(f"  - Absolute: {os.path.abspath(model_path)}")
+                logger.warning(f"  - CWD: {os.getcwd()}")
+                logger.warning(f"  - File exists: {os.path.exists(model_path)}")
+                raise FileNotFoundError(f"Model file not found at {model_path}")
+            
             from ultralytics import YOLO
             self.model = YOLO(model_path)
             logger.info("✅ YOLO model loaded successfully")
-        except FileNotFoundError:
-            logger.error(f"❌ Model file not found: {model_path}")
+        except FileNotFoundError as e:
+            logger.error(f"❌ Model file not found: {e}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
         except ImportError:
@@ -89,7 +99,9 @@ class VisionProcessor:
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
         except Exception as e:
-            logger.error(f"❌ Failed to load YOLO model: {e}")
+            logger.error(f"❌ Failed to load YOLO model: {type(e).__name__}: {e}")
+            logger.warning(f"Working directory: {os.getcwd()}")
+            logger.warning(f"Model path: {os.path.abspath(model_path)}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
         
