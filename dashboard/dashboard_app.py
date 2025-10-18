@@ -102,6 +102,13 @@ def on_subscribe(client, userdata, mid, granted_qos, properties=None):
     print(f"🔔 Subscription confirmed by broker: mid={mid}, QoS={granted_qos}")
 
 
+def on_disconnect(client, userdata, rc, properties=None):
+    """Callback when client disconnects from broker."""
+    print(f"⚠️ MQTT client disconnected! Reason code: {rc}")
+    if rc != 0:
+        print(f"   Unexpected disconnection! Will attempt reconnect...")
+
+
 def on_message(client, userdata, msg):
     """
     Callback for incoming MQTT messages.
@@ -180,6 +187,7 @@ def setup_mqtt():
     # Assign callbacks (defined at module level)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_subscribe = on_subscribe
+    mqtt_client.on_disconnect = on_disconnect
     mqtt_client.on_message = on_message
     
     # Connect to local MQTT broker (Mosquitto in Docker)
