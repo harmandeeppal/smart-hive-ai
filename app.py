@@ -456,6 +456,7 @@ class SmartHiveSystem:
     
     def telemetry_loop(self):
         """--- ENHANCEMENT: Unified loop for all telemetry sensors ---"""
+        print("📊 Telemetry loop thread started")
         while self.is_running:
             # Wait until at least one sensor is enabled before continuing
             while self.is_running and not any([
