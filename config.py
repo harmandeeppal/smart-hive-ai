@@ -130,10 +130,11 @@ TOPIC_TELEMETRY = "hive/telemetry"
 # Edge-app publishes JPEG frames here, Vision service subscribes
 TOPIC_CAMERA_FRAME = "hive/telemetry/camera/frame"
 
-# Topic for publishing AI vision detection results
+# Topic for publishing AI vision detection results (legacy edge-app built-in vision)
+# Used by app.py when running vision locally on Pi (not microservice)
 TOPIC_VISION = "hive/vision"
 
-# Topic for receiving control commands
+# Topic for receiving control commands (unified for sensors + ML services)
 TOPIC_CONTROL = "hive/control"
 
 # -----------------------------------------------------------------------------

@@ -116,8 +116,8 @@ class VisionInferenceService:
             # Subscribe to camera frames and control messages
             client.subscribe(config.TOPIC_CAMERA_FRAME)
             logger.info(f"📨 Subscribed to: {config.TOPIC_CAMERA_FRAME}")
-            client.subscribe("hive/ml/control")
-            client.subscribe("hive/vision/enable")
+            client.subscribe(config.TOPIC_CONTROL)
+            logger.info(f"📨 Subscribed to: {config.TOPIC_CONTROL} (for ML vision control)")
         else:
             logger.error(f"❌ MQTT connection failed with code {rc}")
     
@@ -155,16 +155,21 @@ class VisionInferenceService:
                 except Exception as e:
                     logger.debug(f"Frame decode error: {e}")
             
-            elif msg.topic in ["hive/ml/control", "hive/vision/enable"]:
-                # Handle control messages
+            elif msg.topic == config.TOPIC_CONTROL:
+                # Handle control messages for ML vision toggle
                 try:
-                    payload = msg.payload.decode()
-                    if "enable" in payload.lower():
-                        self.vision_enabled = True
-                        logger.info("🟢 Vision enabled")
-                    elif "disable" in payload.lower():
-                        self.vision_enabled = False
-                        logger.info("🔴 Vision disabled")
+                    control_data = json.loads(msg.payload.decode())
+                    sensor = control_data.get("sensor")
+                    state = control_data.get("state")
+                    
+                    # Only handle ml_vision commands
+                    if sensor == "ml_vision":
+                        if state == "on":
+                            self.vision_enabled = True
+                            logger.info("🟢 ML Vision enabled via dashboard")
+                        elif state == "off":
+                            self.vision_enabled = False
+                            logger.info("🔴 ML Vision disabled via dashboard")
                 except Exception as e:
                     logger.debug(f"Control message parse error: {e}")
         
