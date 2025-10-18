@@ -121,14 +121,42 @@ class AudioProcessor:
         try:
             import sounddevice as sd
             
+            # Try to find the correct microphone (Samson Meteorite or C270 webcam)
+            devices = sd.query_devices()
+            mic_device = None
+            
+            # Look for Samson Meteorite Mic (preferred)
+            for idx, device in enumerate(devices):
+                device_name = device['name'].lower()
+                if 'samson' in device_name or 'meteorite' in device_name:
+                    if device['max_input_channels'] > 0:
+                        mic_device = idx
+                        logger.info(f"📱 Using microphone: {device['name']} (device {idx})")
+                        break
+            
+            # Fallback to C270 webcam mic if Samson not found
+            if mic_device is None:
+                for idx, device in enumerate(devices):
+                    device_name = device['name'].lower()
+                    if 'c270' in device_name or 'webcam' in device_name:
+                        if device['max_input_channels'] > 0:
+                            mic_device = idx
+                            logger.info(f"📱 Using microphone: {device['name']} (device {idx})")
+                            break
+            
+            # Use default device if no specific mic found
+            if mic_device is None:
+                logger.info(f"📱 Using default microphone")
+            
             logger.info(f"⏺ Recording for {duration_sec} seconds...")
             
-            # Record audio
+            # Record audio with specific device
             audio_data = sd.rec(
                 int(duration_sec * self.sample_rate),
                 samplerate=self.sample_rate,
                 channels=1,
-                dtype='float32'
+                dtype='float32',
+                device=mic_device  # Use detected device
             )
             sd.wait()  # Wait for recording to complete
             

@@ -99,37 +99,40 @@ header h1 { margin: 0; font-size: 1.5rem; }
     justify-content: center;
 }
 
-/* Video Toggle Button (green when on) */
+/* Video Toggle Button - match standard sensor blue */
 .video-toggle {
-    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    background-color: #4267B2;
     flex: 1;
-    box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);
 }
 
 .video-toggle:hover {
-    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+    background-color: #365899;
 }
 
 .video-toggle[data-state="off"] {
-    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
+    background-color: #6c757d;
 }
 
-/* AI Vision Toggle Button (blue when on) */
+.video-toggle[data-state="off"]:hover {
+    background-color: #5a6268;
+}
+
+/* AI Vision Toggle Button - match standard sensor blue */
 .ai-toggle {
-    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    background-color: #4267B2;
     flex: 1;
-    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
 }
 
 .ai-toggle:hover {
-    opacity: 0.9;
+    background-color: #365899;
 }
 
-.ai-toggle[data-state="on"],
-.ai-toggle.ai-active {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    box-shadow: 0 4px 6px rgba(0, 123, 255, 0.3);
+.ai-toggle[data-state="off"] {
+    background-color: #6c757d;
+}
+
+.ai-toggle[data-state="off"]:hover {
+    background-color: #5a6268;
 }
 
 /* Toggle Button Styles */

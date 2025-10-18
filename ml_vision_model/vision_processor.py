@@ -145,11 +145,27 @@ class VisionProcessor:
         # Initialize camera only if requested (edge-app only, not for vision service)
         if self.use_camera and self.enabled:
             try:
-                from real_components import RealVisionProcessor
-                camera_config = RealVisionProcessor()
-                self.camera = camera_config.camera
+                import cv2
+                # Use camera configuration from config
+                camera_index = getattr(config, 'CAMERA_DEVICE_INDEX', 0)
+                self.camera = cv2.VideoCapture(camera_index)
+                
                 if self.camera and self.camera.isOpened():
-                    logger.info("✅ Camera initialized successfully")
+                    # Set camera properties
+                    camera_width = getattr(config, 'CAMERA_WIDTH', 640)
+                    camera_height = getattr(config, 'CAMERA_HEIGHT', 480)
+                    self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, camera_width)
+                    self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, camera_height)
+                    
+                    # Test read to verify camera works
+                    ret, test_frame = self.camera.read()
+                    if ret and test_frame is not None:
+                        logger.info(f"✅ Camera initialized successfully ({camera_width}x{camera_height})")
+                        self.frame = test_frame  # Store initial frame
+                    else:
+                        logger.warning("⚠️  Camera opened but failed to read test frame")
+                        self.camera.release()
+                        self.camera = None
                 else:
                     logger.warning("⚠️  Camera not available (may be running in mock environment)")
                     self.camera = None
