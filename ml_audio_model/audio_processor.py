@@ -144,10 +144,12 @@ class AudioProcessor:
         """
         try:
             import sounddevice as sd
+            import librosa
             
             # Try to find the correct microphone (Samson Meteorite or C270 webcam)
             devices = sd.query_devices()
             mic_device = None
+            device_info = None
             
             # Look for Samson Meteorite Mic (preferred)
             for idx, device in enumerate(devices):
@@ -155,6 +157,7 @@ class AudioProcessor:
                 if 'samson' in device_name or 'meteorite' in device_name:
                     if device['max_input_channels'] > 0:
                         mic_device = idx
+                        device_info = device
                         logger.info(f"📱 Using microphone: {device['name']} (device {idx})")
                         break
             
@@ -165,19 +168,39 @@ class AudioProcessor:
                     if 'c270' in device_name or 'webcam' in device_name:
                         if device['max_input_channels'] > 0:
                             mic_device = idx
+                            device_info = device
                             logger.info(f"📱 Using microphone: {device['name']} (device {idx})")
                             break
             
             # Use default device if no specific mic found
             if mic_device is None:
+                device_info = sd.query_devices(kind='input')
                 logger.info(f"📱 Using default microphone")
             
-            logger.info(f"⏺ Recording for {duration_sec} seconds...")
+            # Determine recording sample rate
+            # Most USB mics support 44100 or 48000 Hz, not 22050
+            recording_sr = self.sample_rate
+            if device_info:
+                default_sr = int(device_info.get('default_samplerate', 44100))
+                # Try common sample rates in order of preference
+                supported_rates = [22050, 44100, 48000, 16000]
+                for rate in supported_rates:
+                    try:
+                        # Test if this sample rate is supported
+                        sd.check_input_settings(device=mic_device, samplerate=rate, channels=1)
+                        recording_sr = rate
+                        if rate != self.sample_rate:
+                            logger.info(f"⚙️  Device doesn't support {self.sample_rate}Hz, using {rate}Hz (will resample)")
+                        break
+                    except sd.PortAudioError:
+                        continue
             
-            # Record audio with specific device
+            logger.info(f"⏺ Recording for {duration_sec} seconds at {recording_sr}Hz...")
+            
+            # Record audio with specific device and sample rate
             audio_data = sd.rec(
-                int(duration_sec * self.sample_rate),
-                samplerate=self.sample_rate,
+                int(duration_sec * recording_sr),
+                samplerate=recording_sr,
                 channels=1,
                 dtype='float32',
                 device=mic_device  # Use detected device
@@ -187,7 +210,18 @@ class AudioProcessor:
             # Flatten to 1D array
             audio_data = audio_data.flatten()
             
-            logger.info(f"✅ Recording complete ({len(audio_data)} samples)")
+            logger.info(f"✅ Recording complete ({len(audio_data)} samples at {recording_sr}Hz)")
+            
+            # Resample to target sample rate if different
+            if recording_sr != self.sample_rate:
+                logger.info(f"🔄 Resampling from {recording_sr}Hz to {self.sample_rate}Hz...")
+                audio_data = librosa.resample(
+                    audio_data, 
+                    orig_sr=recording_sr, 
+                    target_sr=self.sample_rate
+                )
+                logger.info(f"✅ Resampled to {len(audio_data)} samples at {self.sample_rate}Hz")
+            
             return audio_data, self.sample_rate
         
         except ImportError:
