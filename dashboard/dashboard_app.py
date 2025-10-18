@@ -60,6 +60,83 @@ socketio = SocketIO(app, async_mode='threading')
 mqtt_client = mqtt_client_module.Client(mqtt_client_module.CallbackAPIVersion.VERSION2, client_id="SmartHive_Dashboard")
 
 
+# MQTT Callback functions (must be at module level to prevent garbage collection)
+def on_connect(client, userdata, flags, rc, properties=None):
+    """
+    Callback for MQTT connection establishment.
+    
+    Args:
+        client: MQTT client instance
+        userdata: User data (unused)
+        flags: Connection flags
+        rc: Connection result code
+        properties: Connection properties (MQTT v5)
+    """
+    print(f"🔗 on_connect callback fired! RC={rc}")
+    if rc == 0:
+        print("✅ Dashboard MQTT client connected successfully.")
+        # Subscribe to telemetry, vision, and ML topics
+        print(f"📡 Subscribing to: {config.TOPIC_TELEMETRY}")
+        result1, mid1 = client.subscribe(config.TOPIC_TELEMETRY)
+        print(f"   Result: {result1}, MID: {mid1}")
+        
+        print(f"📡 Subscribing to: {config.TOPIC_VISION}")
+        result2, mid2 = client.subscribe(config.TOPIC_VISION)
+        print(f"   Result: {result2}, MID: {mid2}")
+        
+        print(f"📡 Subscribing to: {config.TOPIC_VISION_RESULTS}")
+        result3, mid3 = client.subscribe(config.TOPIC_VISION_RESULTS)
+        print(f"   Result: {result3}, MID: {mid3}")
+        
+        print(f"📡 Subscribing to: {config.TOPIC_AUDIO_RESULTS}")
+        result4, mid4 = client.subscribe(config.TOPIC_AUDIO_RESULTS)
+        print(f"   Result: {result4}, MID: {mid4}")
+        
+        print("✅ All MQTT subscription requests sent")
+    else:
+        print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
+
+
+def on_subscribe(client, userdata, mid, granted_qos, properties=None):
+    """Callback when subscription is acknowledged by broker."""
+    print(f"🔔 Subscription confirmed by broker: mid={mid}, QoS={granted_qos}")
+
+
+def on_message(client, userdata, msg):
+    """
+    Callback for incoming MQTT messages.
+    
+    Parses JSON payload and emits data to connected WebSocket clients
+    via Socket.IO for real-time dashboard updates.
+    
+    Args:
+        client: MQTT client instance
+        userdata: User data (unused)
+        msg: MQTT message with topic and payload
+    """
+    print(f"📥 Received MQTT message on topic: {msg.topic}")
+    try:
+        payload = json.loads(msg.payload.decode())
+        print(f"   Payload: {payload}")
+        
+        # Route message to appropriate WebSocket event
+        if msg.topic == config.TOPIC_TELEMETRY:
+            print("   → Emitting 'telemetry_update' via Socket.IO")
+            socketio.emit('telemetry_update', payload, namespace='/')
+        elif msg.topic == config.TOPIC_VISION:
+            socketio.emit('vision_update', payload, namespace='/')
+        elif msg.topic == config.TOPIC_VISION_RESULTS:
+            socketio.emit('vision_ml_update', payload, namespace='/')
+        elif msg.topic == config.TOPIC_AUDIO_RESULTS:
+            socketio.emit('audio_ml_update', payload, namespace='/')
+    except json.JSONDecodeError:
+        print(f"❌ Could not decode JSON payload: {msg.payload}")
+    except Exception as e:
+        print(f"❌ An error occurred in on_message: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 @app.route('/video_feed')
 def video_feed():
     """
@@ -95,87 +172,12 @@ def video_feed():
 
 def setup_mqtt():
     """
-    Configure and connect MQTT client to AWS IoT Core.
+    Configure and connect MQTT client to local Mosquitto broker.
     
-    Sets up TLS connection with AWS IoT Core and subscribes to telemetry
-    and vision topics. Implements callbacks for connection and message handling.
-    Runs MQTT network loop in background thread.
+    Assigns callbacks and connects to broker. Runs MQTT network loop in background thread.
     """
     
-    def on_connect(client, userdata, flags, rc, properties=None):
-        """
-        Callback for MQTT connection establishment.
-        
-        Args:
-            client: MQTT client instance
-            userdata: User data (unused)
-            flags: Connection flags
-            rc: Connection result code
-            properties: Connection properties (MQTT v5)
-        """
-        print(f"🔗 on_connect callback fired! RC={rc}")
-        if rc == 0:
-            print("✅ Dashboard MQTT client connected successfully.")
-            # Subscribe to telemetry, vision, and ML topics
-            print(f"📡 Subscribing to: {config.TOPIC_TELEMETRY}")
-            result1, mid1 = client.subscribe(config.TOPIC_TELEMETRY)
-            print(f"   Result: {result1}, MID: {mid1}")
-            
-            print(f"📡 Subscribing to: {config.TOPIC_VISION}")
-            result2, mid2 = client.subscribe(config.TOPIC_VISION)
-            print(f"   Result: {result2}, MID: {mid2}")
-            
-            print(f"📡 Subscribing to: {config.TOPIC_VISION_RESULTS}")
-            result3, mid3 = client.subscribe(config.TOPIC_VISION_RESULTS)
-            print(f"   Result: {result3}, MID: {mid3}")
-            
-            print(f"📡 Subscribing to: {config.TOPIC_AUDIO_RESULTS}")
-            result4, mid4 = client.subscribe(config.TOPIC_AUDIO_RESULTS)
-            print(f"   Result: {result4}, MID: {mid4}")
-            
-            print("✅ All MQTT subscription requests sent")
-        else:
-            print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
-
-    def on_subscribe(client, userdata, mid, granted_qos, properties=None):
-        """Callback when subscription is acknowledged by broker."""
-        print(f"🔔 Subscription confirmed by broker: mid={mid}, QoS={granted_qos}")
-
-    def on_message(client, userdata, msg):
-        """
-        Callback for incoming MQTT messages.
-        
-        Parses JSON payload and emits data to connected WebSocket clients
-        via Socket.IO for real-time dashboard updates.
-        
-        Args:
-            client: MQTT client instance
-            userdata: User data (unused)
-            msg: MQTT message with topic and payload
-        """
-        print(f"📥 Received MQTT message on topic: {msg.topic}")
-        try:
-            payload = json.loads(msg.payload.decode())
-            print(f"   Payload: {payload}")
-            
-            # Route message to appropriate WebSocket event
-            if msg.topic == config.TOPIC_TELEMETRY:
-                print("   → Emitting 'telemetry_update' via Socket.IO")
-                socketio.emit('telemetry_update', payload, namespace='/')
-            elif msg.topic == config.TOPIC_VISION:
-                socketio.emit('vision_update', payload, namespace='/')
-            elif msg.topic == config.TOPIC_VISION_RESULTS:
-                socketio.emit('vision_ml_update', payload, namespace='/')
-            elif msg.topic == config.TOPIC_AUDIO_RESULTS:
-                socketio.emit('audio_ml_update', payload, namespace='/')
-        except json.JSONDecodeError:
-            print(f"❌ Could not decode JSON payload: {msg.payload}")
-        except Exception as e:
-            print(f"❌ An error occurred in on_message: {e}")
-            import traceback
-            traceback.print_exc()
-            
-    # Assign callbacks
+    # Assign callbacks (defined at module level)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_subscribe = on_subscribe
     mqtt_client.on_message = on_message
