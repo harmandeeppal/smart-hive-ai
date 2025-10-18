@@ -315,7 +315,7 @@ class SmartHiveSystem:
         NOTE: The port must be different from the main dashboard's port.
         """
         print("Starting video streaming server on port 5001...")
-        self.flask_app.run(host='0.0.0.0', port=5001, debug=False)
+        self.flask_app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)
 
     # --- Individual Task Loops ---
     def s3_snapshot_loop(self):
