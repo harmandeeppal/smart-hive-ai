@@ -287,6 +287,14 @@ class SmartHiveSystem:
         # Calculate delay based on configured FPS
         frame_delay = 1.0 / config.VIDEO_STREAM_FPS
         
+        # Check if camera is available before starting stream
+        if not self.vision_processor or not hasattr(self.vision_processor, 'camera') or not self.vision_processor.camera:
+            # Camera not available - send error frame
+            error_msg = b"Camera not initialized"
+            yield (b'--frame\r\n'
+                   b'Content-Type: text/plain\r\n\r\n' + error_msg + b'\r\n')
+            return
+        
         while self.is_running:
             # Capture a fresh frame directly from camera for live streaming
             # This is separate from AI detection which runs at slower intervals
@@ -305,6 +313,10 @@ class SmartHiveSystem:
                         # Yield the frame in the multipart format
                         yield (b'--frame\r\n'
                                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            else:
+                # Camera closed or not available - yield error and break
+                print("⚠️  Camera not available during streaming, stopping video feed")
+                break
             
             # Control the frame rate based on config (default: 20 FPS)
             time.sleep(frame_delay)
