@@ -256,6 +256,13 @@ class AudioProcessor:
         try:
             import librosa
             
+            # Ensure audio is long enough for MFCC extraction
+            min_length = 2048  # n_fft size
+            if len(audio_data) < min_length:
+                # Pad with zeros if too short
+                audio_data = np.pad(audio_data, (0, min_length - len(audio_data)), mode='constant')
+                logger.warning(f"⚠️  Audio too short, padded to {len(audio_data)} samples")
+            
             # Extract 13 MFCC coefficients (matching training)
             mfcc = librosa.feature.mfcc(
                 y=audio_data,
@@ -265,14 +272,30 @@ class AudioProcessor:
                 hop_length=512
             )
             
+            # Verify we got 13 coefficients
+            if mfcc.shape[0] != 13:
+                logger.error(f"❌ Expected 13 MFCC coefficients, got {mfcc.shape[0]}")
+                logger.error(f"   Audio length: {len(audio_data)} samples")
+                logger.error(f"   MFCC shape: {mfcc.shape}")
+                return None
+            
             # Extract delta and delta-delta
             delta = librosa.feature.delta(mfcc, order=1)
             delta_delta = librosa.feature.delta(mfcc, order=2)
             
+            # Verify shapes match
+            if delta.shape != mfcc.shape or delta_delta.shape != mfcc.shape:
+                logger.error(f"❌ Shape mismatch: MFCC {mfcc.shape}, Delta {delta.shape}, Delta² {delta_delta.shape}")
+                return None
+            
             # Compute 8 statistics for each coefficient track
             features = []
-            for mat in (mfcc, delta, delta_delta):
-                for coeff_track in mat:  # Each row is one coefficient over time
+            for mat_idx, mat in enumerate((mfcc, delta, delta_delta)):
+                for coeff_idx, coeff_track in enumerate(mat):  # Each row is one coefficient over time
+                    if len(coeff_track) == 0:
+                        logger.error(f"❌ Empty coefficient track at matrix {mat_idx}, coeff {coeff_idx}")
+                        return None
+                    
                     features.extend([
                         np.mean(coeff_track),
                         np.std(coeff_track),
@@ -285,6 +308,15 @@ class AudioProcessor:
                     ])
             
             features = np.array(features, dtype=np.float32)
+            
+            # Verify feature count
+            if len(features) != 312:
+                logger.error(f"❌ Expected 312 features, got {len(features)}")
+                logger.error(f"   MFCC shape: {mfcc.shape}")
+                logger.error(f"   Audio length: {len(audio_data)} samples ({len(audio_data)/self.sample_rate:.2f}s)")
+                logger.error(f"   Features extracted: {len(features)}")
+                return None
+            
             logger.debug(f"Extracted {len(features)} features (13 MFCC × 3 types × 8 stats)")
             return features.reshape(1, -1)  # Return as 2D array for model
         
@@ -356,20 +388,40 @@ class AudioProcessor:
             
             # Step 2: Extract features from each window
             window_features = []
+            failed_windows = []
             for i, window in enumerate(windows):
                 features = self.extract_features(window)
                 if features is None:
-                    logger.warning(f"Failed to extract features from window {i+1}")
+                    failed_windows.append(i+1)
+                    logger.warning(f"⚠️  Failed to extract features from window {i+1}/{len(windows)} (length: {len(window)} samples)")
                     continue
+                
+                # Verify feature shape
+                if features.shape[1] != 312:
+                    failed_windows.append(i+1)
+                    logger.warning(f"⚠️  Window {i+1} produced {features.shape[1]} features instead of 312")
+                    continue
+                    
                 window_features.append(features)
             
+            if failed_windows:
+                logger.warning(f"⚠️  Failed to extract features from {len(failed_windows)} windows: {failed_windows[:5]}{'...' if len(failed_windows) > 5 else ''}")
+            
             if not window_features:
-                logger.error("No valid features extracted from any window")
+                logger.error("❌ No valid features extracted from any window")
                 return {"classification": "error", "confidence": 0.0, "error": "feature_extraction_failed"}
             
             # Stack into matrix (n_windows, n_features)
             features_matrix = np.vstack(window_features)
+            logger.info(f"✅ Extracted features from {len(window_features)}/{len(windows)} windows successfully")
             logger.debug(f"Feature matrix shape: {features_matrix.shape}")
+            
+            # Verify feature matrix dimensions
+            if features_matrix.shape[1] != 312:
+                logger.error(f"❌ Feature matrix has {features_matrix.shape[1]} features, expected 312")
+                logger.error(f"   Matrix shape: {features_matrix.shape}")
+                logger.error(f"   Individual feature shapes: {[f.shape for f in window_features[:3]]}")
+                return {"classification": "error", "confidence": 0.0, "error": f"invalid_features_{features_matrix.shape[1]}"}
             
             # Step 3: Apply model pipeline (feature selection, scaling, prediction)
             X = features_matrix
