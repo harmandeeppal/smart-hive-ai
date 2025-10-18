@@ -72,3 +72,14 @@ header h1 { margin: 0; font-size: 1.5rem; }
 .toggle-btn:hover { background-color: #365899; }
 .toggle-btn.off { background-color: #6c757d; }
 .toggle-btn.off:hover { background-color: #5a6268; }
+/* Audio ML Card Styles */
+#audio-ml-card { grid-column: span 1; }
+.audio-ml-status { display: flex; justify-content: space-between; margin: 1rem 0; font-size: 0.9rem; color: #606770; }
+.audio-ml-controls { margin: 1rem 0; }
+.record-btn { background-color: #dc3545; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; width: 100%; font-size: 1rem; font-weight: 600; }
+.record-btn:hover { background-color: #c82333; }
+.record-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+.recording-progress { margin-top: 1rem; }
+.progress-bar { width: 100%; height: 20px; background-color: #e9ecef; border-radius: 10px; overflow: hidden; margin-bottom: 0.5rem; }
+.progress-fill { height: 100%; background-color: #dc3545; border-radius: 10px; width: 0%; transition: width 1s linear; }
+#progress-text { font-size: 0.9rem; color: #606770; text-align: center; display: block; }

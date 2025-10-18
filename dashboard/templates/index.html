@@ -83,6 +83,29 @@
             </div>
             <button class="toggle-btn" data-sensor="vision">Toggle: ON</button>
         </div>
+
+        <!-- AI Audio Analysis Card (NEW) -->
+        <div class="card" id="audio-ml-card">
+            <h2>AI Audio Analysis</h2>
+            <p class="sensor-value" id="audio-ml-value">Ready to record</p>
+            <div class="audio-ml-status">
+                <span>Classification: <strong id="audio-classification">--</strong></span>
+                <span>Confidence: <strong id="audio-confidence">--</strong></span>
+            </div>
+            <div class="audio-ml-controls">
+                <button id="record-audio-btn" class="record-btn">
+                    🎤 Record 1 Minute & Analyze
+                </button>
+                <div id="recording-progress" class="recording-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <span id="progress-text">Recording: 0s / 60s</span>
+                </div>
+            </div>
+            <p class="status-text">Status: <span id="audio-ml-status">Idle</span></p>
+            <p class="action-text">Last Analysis: <span id="audio-last-analysis">Never</span></p>
+        </div>
     </main>
 
     <!-- External Libraries -->

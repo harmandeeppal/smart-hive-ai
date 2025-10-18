@@ -242,6 +242,41 @@ def handle_request_ml_status():
     socketio.emit('ml_status_response', ml_status)
 
 
+@socketio.on('trigger_audio_recording')
+def handle_trigger_audio_recording(data):
+    """
+    Handle audio recording trigger from dashboard.
+    
+    Publishes MQTT command to audio service to start 1-minute recording
+    and ML classification.
+    
+    Args:
+        data (dict): Recording parameters
+                    Example: {"duration": 60}
+    """
+    print(f"Audio recording trigger received: {data}")
+    
+    # Publish recording trigger to audio service
+    recording_command = {
+        "command": "record_and_classify",
+        "duration_sec": data.get('duration', 60),  # Default 60 seconds
+        "timestamp": int(time.time())
+    }
+    
+    result = mqtt_client.publish(
+        "hive/audio/control",
+        json.dumps(recording_command),
+        qos=1
+    )
+    print(f"Published audio recording command with result: {result}")
+    
+    # Acknowledge to client
+    socketio.emit('recording_started', {
+        "duration": recording_command["duration_sec"],
+        "timestamp": recording_command["timestamp"]
+    })
+
+
 @app.route('/')
 def index():
     """

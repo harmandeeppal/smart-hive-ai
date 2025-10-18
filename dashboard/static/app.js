@@ -45,6 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    socket.on('audio_ml_update', data => {
+        console.log('Received audio ML data:', data);
+        updateAudioMLStatus(data);
+    });
+
+    socket.on('recording_started', data => {
+        console.log('Recording started:', data);
+        startRecordingProgress(data.duration);
+    });
+
     // --- UI UPDATE FUNCTIONS ---
     function updateTimestamp(timestamp) {
         const nzTime = new Date(timestamp * 1000).toLocaleString('en-NZ', {
@@ -208,6 +218,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateAudioMLStatus(data) {
+        const classification = data.results?.classification || data.classification || 'Unknown';
+        const confidence = data.results?.confidence || data.confidence || 0;
+        
+        // Update display elements
+        document.getElementById('audio-classification').textContent = classification;
+        document.getElementById('audio-confidence').textContent = `${(confidence * 100).toFixed(1)}%`;
+        
+        // Update status based on classification
+        const statusEl = document.getElementById('audio-ml-status');
+        const valueEl = document.getElementById('audio-ml-value');
+        
+        if (classification.toLowerCase().includes('queen')) {
+            statusEl.textContent = '👑 Queen Detected';
+            valueEl.textContent = 'Queen bee sounds identified';
+        } else if (classification.toLowerCase().includes('queenless')) {
+            statusEl.textContent = '⚠️ Queenless Colony';
+            valueEl.textContent = 'No queen bee sounds detected';
+        } else {
+            statusEl.textContent = 'Analysis Complete';
+            valueEl.textContent = classification;
+        }
+        
+        // Update last analysis time
+        const nzTime = new Date().toLocaleString('en-NZ', {
+            timeZone: 'Pacific/Auckland',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        document.getElementById('audio-last-analysis').textContent = nzTime;
+        
+        // Hide progress bar
+        document.getElementById('recording-progress').style.display = 'none';
+        document.getElementById('record-audio-btn').disabled = false;
+    }
+
+    function startRecordingProgress(duration) {
+        const progressContainer = document.getElementById('recording-progress');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const recordBtn = document.getElementById('record-audio-btn');
+        
+        progressContainer.style.display = 'block';
+        recordBtn.disabled = true;
+        
+        let elapsed = 0;
+        const interval = setInterval(() => {
+            elapsed++;
+            const percent = (elapsed / duration) * 100;
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `Recording: ${elapsed}s / ${duration}s`;
+            
+            if (elapsed >= duration) {
+                clearInterval(interval);
+                progressText.textContent = 'Processing audio...';
+            }
+        }, 1000);
+    }
+
     // --- HELPER FUNCTIONS ---
     function generateSparkline(data) {
         const sparklineChars = [' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
@@ -234,4 +305,12 @@ document.addEventListener('DOMContentLoaded', () => {
         button.textContent = `Toggle: ${state ? 'ON' : 'OFF'}`;
         state ? button.classList.remove('off') : button.classList.add('off');
     }
+
+    // --- AUDIO RECORDING BUTTON ---
+    document.getElementById('record-audio-btn')?.addEventListener('click', () => {
+        console.log('Audio recording button clicked');
+        socket.emit('trigger_audio_recording', { duration: 60 });
+        document.getElementById('audio-ml-value').textContent = 'Starting recording...';
+        document.getElementById('audio-ml-status').textContent = 'Recording...';
+    });
 });

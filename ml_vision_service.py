@@ -220,8 +220,9 @@ class VisionInferenceService:
                         "frame_number": self.frame_counter
                     }
                     
+                    # Publish to topic defined in config (hive/vision/detection)
                     self.mqtt_client.publish(
-                        "hive/vision/results",
+                        config.TOPIC_VISION_RESULTS,
                         json.dumps(message),
                         qos=1
                     )

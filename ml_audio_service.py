@@ -38,6 +38,8 @@ class AudioInferenceService:
         self.is_running = True
         self.mqtt_client = None
         self.audio_processor = None
+        self.recording_requested = False
+        self.recording_duration = 60  # Default 60 seconds
         
         # Load configuration
         self.mqtt_broker = config.MQTT_BROKER
@@ -89,52 +91,76 @@ class AudioInferenceService:
             logger.info("✅ MQTT connected successfully")
             client.subscribe("hive/ml/control")
             client.subscribe("hive/audio/enable")
+            client.subscribe("hive/audio/control")  # Subscribe to recording triggers
         else:
             logger.error(f"❌ MQTT connection failed with code {rc}")
     
     def on_message(self, client, userdata, msg):
-        """Handle control messages"""
+        """Handle control messages and recording triggers"""
         try:
             payload = msg.payload.decode()
             logger.info(f"📨 Control message: {msg.topic} = {payload}")
+            
+            # Handle recording trigger from dashboard
+            if msg.topic == "hive/audio/control":
+                try:
+                    import json
+                    command_data = json.loads(payload)
+                    if command_data.get('command') == 'record_and_classify':
+                        self.recording_requested = True
+                        self.recording_duration = command_data.get('duration_sec', 60)
+                        logger.info(f"🎤 Recording requested: {self.recording_duration} seconds")
+                except Exception as e:
+                    logger.error(f"Error parsing recording command: {e}")
+                    
         except Exception as e:
             logger.error(f"Message parse error: {e}")
     
     def run_audio_inference(self):
-        """Run continuous audio inference"""
+        """Run audio inference on-demand (triggered by dashboard)"""
         if not self.audio_processor:
             logger.warning("⚠️  Audio processor not available")
             return
         
-        logger.info("🎤 Starting audio inference loop...")
+        logger.info("🎤 Audio service ready (on-demand recording mode)")
         
         while self.is_running:
             try:
-                # Audio processor handles microphone input
-                results = self.audio_processor.process_audio()
-                
-                if results:
-                    # Publish results to MQTT
-                    message = {
-                        "timestamp": datetime.now().isoformat(),
-                        "model_type": "audio",
-                        "results": results
-                    }
+                # Wait for recording trigger from dashboard
+                if self.recording_requested:
+                    self.recording_requested = False
                     
-                    import json
-                    self.mqtt_client.publish(
-                        "hive/audio/results",
-                        json.dumps(message),
-                        qos=1
+                    logger.info(f"🎙️  Starting {self.recording_duration}s recording...")
+                    
+                    # Audio processor handles microphone input
+                    results = self.audio_processor.record_and_classify(
+                        duration_sec=self.recording_duration
                     )
-                    logger.debug(f"✅ Audio results published")
+                    
+                    if results:
+                        # Publish results to MQTT (config.TOPIC_AUDIO_RESULTS)
+                        message = {
+                            "timestamp": datetime.now().isoformat(),
+                            "model_type": "audio_ml_classifier",
+                            "results": results
+                        }
+                        
+                        import json
+                        self.mqtt_client.publish(
+                            config.TOPIC_AUDIO_RESULTS,
+                            json.dumps(message),
+                            qos=1
+                        )
+                        logger.info(f"✅ Audio results published: {results.get('classification', 'unknown')}")
+                    else:
+                        logger.warning("⚠️  No audio results to publish")
                 
             except Exception as e:
                 logger.error(f"Audio inference error: {e}")
             
             # Small delay to prevent CPU maxing
             import time
-            time.sleep(0.1)
+            time.sleep(0.5)
     
     def run(self):
         """Main service loop"""
