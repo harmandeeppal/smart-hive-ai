@@ -99,36 +99,25 @@ class VisionProcessor:
                 logger.warning(f"Using generic YOLOv8n instead of queen-specific model")
                 logger.warning(f"Original model path was: {model_path}")
                 
-                # FIX: PyTorch 2.6+ requires explicit safe globals for ultralytics models
-                # Add ultralytics and PyTorch nn classes to trusted class allowlist
-                if hasattr(torch.serialization, 'add_safe_globals'):
-                    import ultralytics.nn.tasks
-                    import torch.nn.modules.container
-                    import torch.nn.modules.activation
-                    import torch.nn.modules.batchnorm
-                    import torch.nn.modules.conv
-                    import torch.nn.modules.pooling
-                    import torch.nn.modules.linear
-                    import torch.nn.modules.dropout
-                    import torch.nn.modules.upsampling
-                    
-                    # Allowlist all required classes for YOLO model loading
-                    torch.serialization.add_safe_globals([
-                        ultralytics.nn.tasks.DetectionModel,
-                        torch.nn.modules.container.Sequential,
-                        torch.nn.modules.container.ModuleList,
-                        torch.nn.modules.activation.SiLU,
-                        torch.nn.modules.batchnorm.BatchNorm2d,
-                        torch.nn.modules.conv.Conv2d,
-                        torch.nn.modules.pooling.MaxPool2d,
-                        torch.nn.modules.linear.Linear,
-                        torch.nn.modules.dropout.Dropout,
-                        torch.nn.modules.upsampling.Upsample,
-                    ])
-                    logger.info("✅ Added PyTorch + ultralytics safe globals for PyTorch 2.6+")
+                # FIX: PyTorch 2.6+ changed weights_only default from False to True
+                # This breaks ultralytics model loading (requires many custom classes)
+                # Solution: Temporarily patch torch.load to use weights_only=False
+                # This is SAFE because we're loading from official ultralytics GitHub
+                original_torch_load = torch.load
+                
+                def patched_torch_load(*args, **kwargs):
+                    """Wrapper that sets weights_only=False for YOLO model loading"""
+                    kwargs.setdefault('weights_only', False)
+                    return original_torch_load(*args, **kwargs)
+                
+                torch.load = patched_torch_load
+                logger.info("✅ Patched torch.load to use weights_only=False (safe for official YOLO)")
                 
                 # Use pretrained model (will auto-download on first run)
                 self.model = YOLO('yolov8n.pt')
+                
+                # Restore original torch.load after model loading
+                torch.load = original_torch_load
                 logger.info("✅ YOLO model loaded successfully (pretrained YOLOv8n)")
                 
             except Exception as e:
