@@ -47,7 +47,9 @@ class AudioInferenceService:
         # Initialize audio processor if available
         if AUDIO_AVAILABLE:
             try:
-                self.audio_processor = AudioProcessor()
+                # Use configured audio model path
+                audio_model_path = getattr(config, 'AUDIO_MODEL_PATH', 'models/audio_model.pkl')
+                self.audio_processor = AudioProcessor(audio_model_path)
                 logger.info("✅ Audio processor initialized")
             except Exception as e:
                 logger.warning(f"⚠️  Audio processor init failed: {e}")
