@@ -3,10 +3,11 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for audio processing
+# Install system dependencies for audio processing and YOLO
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     alsa-utils \
+    git \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy requirements first for better caching

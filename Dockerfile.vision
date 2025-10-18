@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install minimal system dependencies for vision only
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY requirements-vision.txt .
