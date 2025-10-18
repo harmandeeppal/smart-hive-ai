@@ -147,19 +147,23 @@ def setup_mqtt():
             print(f"   Payload: {payload}")
             
             # Route message to appropriate WebSocket event
-            if msg.topic == config.TOPIC_TELEMETRY:
-                print("   → Emitting 'telemetry_update' via Socket.IO")
-                socketio.emit('telemetry_update', payload)
-            elif msg.topic == config.TOPIC_VISION:
-                socketio.emit('vision_update', payload)
-            elif msg.topic == config.TOPIC_VISION_RESULTS:
-                socketio.emit('vision_ml_update', payload)
-            elif msg.topic == config.TOPIC_AUDIO_RESULTS:
-                socketio.emit('audio_ml_update', payload)
+            # CRITICAL: Must emit from within Flask app context for threading safety
+            with app.app_context():
+                if msg.topic == config.TOPIC_TELEMETRY:
+                    print("   → Emitting 'telemetry_update' via Socket.IO")
+                    socketio.emit('telemetry_update', payload, namespace='/')
+                elif msg.topic == config.TOPIC_VISION:
+                    socketio.emit('vision_update', payload, namespace='/')
+                elif msg.topic == config.TOPIC_VISION_RESULTS:
+                    socketio.emit('vision_ml_update', payload, namespace='/')
+                elif msg.topic == config.TOPIC_AUDIO_RESULTS:
+                    socketio.emit('audio_ml_update', payload, namespace='/')
         except json.JSONDecodeError:
             print(f"❌ Could not decode JSON payload: {msg.payload}")
         except Exception as e:
             print(f"❌ An error occurred in on_message: {e}")
+            import traceback
+            traceback.print_exc()
             
     # Assign callbacks
     mqtt_client.on_connect = on_connect
