@@ -674,21 +674,25 @@ class SmartHiveSystem:
         - Compresses to reduce bandwidth
         - Publishes to MQTT topic for vision service consumption
         """
-        if not config.ENABLE_CAMERA_FRAME_PUBLISHING:
-            print("⚠️  Camera frame publishing disabled (ENABLE_CAMERA_FRAME_PUBLISHING = False)")
-            return
-        
-        if config.IS_MOCK_ENVIRONMENT:
-            print("📹 Camera frame publisher started (MOCK MODE)")
-        else:
-            print(f"📹 Camera frame publisher started")
-            print(f"   Publishing to: {config.TOPIC_CAMERA_FRAME}")
-            print(f"   Quality: {config.CAMERA_FRAME_JPEG_QUALITY}%")
-            print(f"   Scale: {config.CAMERA_FRAME_RESIZE_SCALE*100:.0f}%")
-            print(f"   FPS: {config.CAMERA_FRAME_PUBLISH_FPS}")
+        try:
+            if not config.ENABLE_CAMERA_FRAME_PUBLISHING:
+                print("⚠️  Camera frame publishing disabled (ENABLE_CAMERA_FRAME_PUBLISHING = False)")
+                return
+            
+            if config.IS_MOCK_ENVIRONMENT:
+                print("📹 Camera frame publisher started (MOCK MODE)")
+            else:
+                print(f"📹 Camera frame publisher started")
+                print(f"   Publishing to: {config.TOPIC_CAMERA_FRAME}")
+                print(f"   Quality: {config.CAMERA_FRAME_JPEG_QUALITY}%")
+                print(f"   Scale: {config.CAMERA_FRAME_RESIZE_SCALE*100:.0f}%")
+                print(f"   FPS: {config.CAMERA_FRAME_PUBLISH_FPS}")
+                import sys
+                sys.stdout.flush()
         
         frame_interval = 1.0 / config.CAMERA_FRAME_PUBLISH_FPS
         last_publish_time = time.time()
+        publish_count = 0
         
         while self.is_running:
             try:
@@ -737,9 +741,12 @@ class SmartHiveSystem:
                             frame_bytes,
                             qos=config.MQTT_QOS
                         )
-                        # Log every 5 seconds to avoid spam
-                        if int(current_time) % 5 == 0:
-                            print(f"📤 Published {len(frame_bytes)} bytes to {config.TOPIC_CAMERA_FRAME}")
+                        publish_count += 1
+                        # Log every 5 publishes to avoid spam (3 FPS = every ~1.6 seconds)
+                        if publish_count % 5 == 0:
+                            print(f"📤 Published {len(frame_bytes)} bytes to {config.TOPIC_CAMERA_FRAME} (total: {publish_count})")
+                            import sys
+                            sys.stdout.flush()
                     except Exception as e:
                         print(f"⚠️  Failed to publish frame: {e}")
                 
