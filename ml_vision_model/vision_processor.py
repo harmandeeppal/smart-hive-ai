@@ -88,14 +88,24 @@ class VisionProcessor:
                 raise FileNotFoundError(f"Model file not found at {model_path}")
             
             from ultralytics import YOLO
+            import torch
+            
+            # Add safe globals for PyTorch 2.6+ compatibility
+            # This allows loading YOLO models trained with older PyTorch versions
+            try:
+                from ultralytics.nn.tasks import DetectionModel
+                torch.serialization.add_safe_globals([DetectionModel])
+            except Exception:
+                pass  # Fallback for older PyTorch versions
+            
             self.model = YOLO(model_path)
             logger.info("✅ YOLO model loaded successfully")
         except FileNotFoundError as e:
             logger.error(f"❌ Model file not found: {e}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
-        except ImportError:
-            logger.error("❌ ultralytics package not installed. Install with: pip install ultralytics")
+        except ImportError as e:
+            logger.error(f"❌ Import error: {e}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
             self.enabled = False
         except Exception as e:
