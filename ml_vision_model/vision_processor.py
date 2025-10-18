@@ -94,9 +94,21 @@ class VisionProcessor:
             # This allows loading YOLO models trained with older PyTorch versions
             try:
                 from ultralytics.nn.tasks import DetectionModel
-                torch.serialization.add_safe_globals([DetectionModel])
-            except Exception:
-                pass  # Fallback for older PyTorch versions
+                import torch.nn.modules.container as container
+                
+                # Add all necessary PyTorch classes for YOLO model loading
+                safe_classes = [
+                    DetectionModel,
+                    container.Sequential,
+                    torch.nn.modules.conv.Conv2d,
+                    torch.nn.modules.pooling.MaxPool2d,
+                    torch.nn.modules.activation.SiLU,
+                    torch.nn.modules.batchnorm.BatchNorm2d,
+                    torch.nn.modules.upsampling.Upsample,
+                ]
+                torch.serialization.add_safe_globals(safe_classes)
+            except Exception as e:
+                logger.warning(f"Could not add PyTorch safe globals: {e}")
             
             self.model = YOLO(model_path)
             logger.info("✅ YOLO model loaded successfully")
