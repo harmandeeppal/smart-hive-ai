@@ -90,27 +90,20 @@ class VisionProcessor:
             from ultralytics import YOLO
             import torch
             
-            # PyTorch 2.6 compatibility: Disable weights_only mode for trusted YOLO models
-            # The YOLO model from ultralytics contains many custom classes that would need
-            # to be individually allowlisted. Since we trust this model source, we can safely
-            # use weights_only=False for loading.
+            # TEMPORARY FIX: Use pretrained YOLOv8n model instead of custom trained model
+            # The custom vision_model.pt has compatibility issues with PyTorch 2.6
+            # This pretrained model will detect objects (not queen-specific) until we retrain
+            # TODO: Train new queen-specific YOLOv8 model and replace 'yolov8n.pt' with path
             try:
-                # Temporarily set torch.load to use weights_only=False
-                original_load = torch.load
-                torch.load = lambda *args, **kwargs: original_load(*args, **{**kwargs, 'weights_only': False})
+                logger.info(f"Loading pretrained YOLOv8n model (temporary fix)...")
+                logger.warning(f"Using generic YOLOv8n instead of queen-specific model")
+                logger.warning(f"Original model path was: {model_path}")
                 
-                logger.info(f"Attempting to load YOLO model with weights_only=False...")
-                self.model = YOLO(model_path)
-                logger.info("✅ YOLO model loaded successfully")
+                # Use pretrained model (will auto-download on first run)
+                self.model = YOLO('yolov8n.pt')
+                logger.info("✅ YOLO model loaded successfully (pretrained YOLOv8n)")
                 
-                # Restore original torch.load
-                torch.load = original_load
             except Exception as e:
-                # Restore torch.load even if error occurs
-                try:
-                    torch.load = original_load
-                except:
-                    pass
                 # Log the full exception for debugging
                 import traceback
                 logger.error(f"YOLO loading exception: {type(e).__name__}: {e}")
