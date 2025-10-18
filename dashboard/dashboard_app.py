@@ -118,14 +118,22 @@ def setup_mqtt():
             print("✅ Dashboard MQTT client connected successfully.")
             # Subscribe to telemetry, vision, and ML topics
             print(f"📡 Subscribing to: {config.TOPIC_TELEMETRY}")
-            client.subscribe(config.TOPIC_TELEMETRY)
+            result1, mid1 = client.subscribe(config.TOPIC_TELEMETRY)
+            print(f"   Result: {result1}, MID: {mid1}")
+            
             print(f"📡 Subscribing to: {config.TOPIC_VISION}")
-            client.subscribe(config.TOPIC_VISION)
+            result2, mid2 = client.subscribe(config.TOPIC_VISION)
+            print(f"   Result: {result2}, MID: {mid2}")
+            
             print(f"📡 Subscribing to: {config.TOPIC_VISION_RESULTS}")
-            client.subscribe(config.TOPIC_VISION_RESULTS)
+            result3, mid3 = client.subscribe(config.TOPIC_VISION_RESULTS)
+            print(f"   Result: {result3}, MID: {mid3}")
+            
             print(f"📡 Subscribing to: {config.TOPIC_AUDIO_RESULTS}")
-            client.subscribe(config.TOPIC_AUDIO_RESULTS)
-            print("✅ All MQTT subscriptions complete")
+            result4, mid4 = client.subscribe(config.TOPIC_AUDIO_RESULTS)
+            print(f"   Result: {result4}, MID: {mid4}")
+            
+            print("✅ All MQTT subscription requests sent")
         else:
             print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
 
