@@ -737,6 +737,9 @@ class SmartHiveSystem:
                             frame_bytes,
                             qos=config.MQTT_QOS
                         )
+                        # Log every 5 seconds to avoid spam
+                        if int(current_time) % 5 == 0:
+                            print(f"📤 Published {len(frame_bytes)} bytes to {config.TOPIC_CAMERA_FRAME}")
                     except Exception as e:
                         print(f"⚠️  Failed to publish frame: {e}")
                 
