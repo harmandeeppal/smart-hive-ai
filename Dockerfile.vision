@@ -1,0 +1,32 @@
+# Dockerfile.vision
+# For building the vision ML inference container
+
+FROM python:3.9-slim-bullseye
+
+WORKDIR /app
+
+# Install system dependencies for OpenCV and video processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy vision requirements and install
+COPY requirements-vision.txt .
+RUN pip install --no-cache-dir -r requirements-vision.txt
+
+# Copy application code
+COPY ml_vision_service.py .
+COPY ml_vision_model/ ./ml_vision_model/
+COPY config.py .
+
+# Copy certificates for AWS/MQTT
+COPY certs/ ./certs/
+
+EXPOSE 8080
+
+CMD ["python", "ml_vision_service.py"]
