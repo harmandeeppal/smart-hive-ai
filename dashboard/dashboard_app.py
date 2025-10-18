@@ -92,6 +92,15 @@ def on_connect(client, userdata, flags, rc, properties=None):
         result4, mid4 = client.subscribe(config.TOPIC_AUDIO_RESULTS)
         print(f"   Result: {result4}, MID: {mid4}")
         
+        # NEW: Subscribe to video and AI vision status topics
+        print(f"📡 Subscribing to: hive/status/video")
+        result5, mid5 = client.subscribe('hive/status/video')
+        print(f"   Result: {result5}, MID: {mid5}")
+        
+        print(f"📡 Subscribing to: hive/status/ai_vision")
+        result6, mid6 = client.subscribe('hive/status/ai_vision')
+        print(f"   Result: {result6}, MID: {mid6}")
+        
         print("✅ All MQTT subscription requests sent")
     else:
         print(f"❌ Dashboard MQTT failed to connect, reason code {rc}")
@@ -100,13 +109,6 @@ def on_connect(client, userdata, flags, rc, properties=None):
 def on_subscribe(client, userdata, mid, granted_qos, properties=None):
     """Callback when subscription is acknowledged by broker."""
     print(f"🔔 Subscription confirmed by broker: mid={mid}, QoS={granted_qos}")
-
-
-def on_disconnect(client, userdata, rc, properties=None):
-    """Callback when client disconnects from broker."""
-    print(f"⚠️ MQTT client disconnected! Reason code: {rc}")
-    if rc != 0:
-        print(f"   Unexpected disconnection! Will attempt reconnect...")
 
 
 def on_message(client, userdata, msg):
@@ -136,6 +138,10 @@ def on_message(client, userdata, msg):
             socketio.emit('vision_ml_update', payload, namespace='/')
         elif msg.topic == config.TOPIC_AUDIO_RESULTS:
             socketio.emit('audio_ml_update', payload, namespace='/')
+        elif msg.topic == 'hive/status/video':
+            socketio.emit('video_status', payload, namespace='/')
+        elif msg.topic == 'hive/status/ai_vision':
+            socketio.emit('ai_vision_status', payload, namespace='/')
     except json.JSONDecodeError:
         print(f"❌ Could not decode JSON payload: {msg.payload}")
     except Exception as e:
@@ -187,7 +193,6 @@ def setup_mqtt():
     # Assign callbacks (defined at module level)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_subscribe = on_subscribe
-    mqtt_client.on_disconnect = on_disconnect
     mqtt_client.on_message = on_message
     
     # Connect to local MQTT broker (Mosquitto in Docker)

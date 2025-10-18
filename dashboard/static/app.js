@@ -306,6 +306,99 @@ document.addEventListener('DOMContentLoaded', () => {
         state ? button.classList.remove('off') : button.classList.add('off');
     }
 
+    // --- VIDEO AND AI VISION TOGGLE HANDLERS ---
+    const videoToggleBtn = document.getElementById('video-toggle-btn');
+    const aiVisionToggleBtn = document.getElementById('ai-vision-toggle-btn');
+    const videoFeed = document.getElementById('video-feed');
+
+    if (videoToggleBtn) {
+        videoToggleBtn.addEventListener('click', () => {
+            const currentState = videoToggleBtn.dataset.state;
+            const newState = currentState === 'on' ? 'off' : 'on';
+            
+            // Send MQTT message
+            fetch('/mqtt/publish', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    topic: 'hive/control/video',
+                    message: JSON.stringify({state: newState})
+                })
+            });
+            
+            // Update button UI
+            videoToggleBtn.dataset.state = newState;
+            videoToggleBtn.querySelector('.toggle-state').textContent = newState.toUpperCase();
+            document.getElementById('video-status-text').textContent = newState.toUpperCase();
+            
+            // Visual feedback on video feed
+            if (videoFeed) {
+                if (newState === 'off') {
+                    videoFeed.style.opacity = '0.3';
+                    videoFeed.style.filter = 'grayscale(100%)';
+                } else {
+                    videoFeed.style.opacity = '1';
+                    videoFeed.style.filter = 'none';
+                }
+            }
+        });
+    }
+
+    if (aiVisionToggleBtn) {
+        aiVisionToggleBtn.addEventListener('click', () => {
+            const currentState = aiVisionToggleBtn.dataset.state;
+            const newState = currentState === 'on' ? 'off' : 'on';
+            
+            // Send MQTT message
+            fetch('/mqtt/publish', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    topic: 'hive/control/ai_vision',
+                    message: JSON.stringify({state: newState})
+                })
+            });
+            
+            // Update button UI
+            aiVisionToggleBtn.dataset.state = newState;
+            aiVisionToggleBtn.querySelector('.toggle-state').textContent = newState.toUpperCase();
+            document.getElementById('ai-vision-status-text').textContent = newState.toUpperCase();
+            
+            // Change button appearance
+            if (newState === 'on') {
+                aiVisionToggleBtn.classList.add('ai-active');
+            } else {
+                aiVisionToggleBtn.classList.remove('ai-active');
+            }
+        });
+    }
+
+    // Listen for status updates from edge-app
+    socket.on('video_status', data => {
+        if (videoToggleBtn) {
+            const status = data.enabled ? 'ON' : 'OFF';
+            const state = data.enabled ? 'on' : 'off';
+            document.getElementById('video-status-text').textContent = status;
+            videoToggleBtn.dataset.state = state;
+            videoToggleBtn.querySelector('.toggle-state').textContent = status;
+        }
+    });
+
+    socket.on('ai_vision_status', data => {
+        if (aiVisionToggleBtn) {
+            const status = data.enabled ? 'ON' : 'OFF';
+            const state = data.enabled ? 'on' : 'off';
+            document.getElementById('ai-vision-status-text').textContent = status;
+            aiVisionToggleBtn.dataset.state = state;
+            aiVisionToggleBtn.querySelector('.toggle-state').textContent = status;
+            if (data.enabled) {
+                aiVisionToggleBtn.classList.add('ai-active');
+            } else {
+                aiVisionToggleBtn.classList.remove('ai-active');
+            }
+        }
+    });
+
     // --- AUDIO WAVEFORM VISUALIZATION ---
     const audioCanvas = document.getElementById('audio-waveform');
     const audioCtx = audioCanvas ? audioCanvas.getContext('2d') : null;
