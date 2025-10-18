@@ -100,11 +100,32 @@ class VisionProcessor:
                 logger.warning(f"Original model path was: {model_path}")
                 
                 # FIX: PyTorch 2.6+ requires explicit safe globals for ultralytics models
-                # Add ultralytics classes to PyTorch's trusted class allowlist
+                # Add ultralytics and PyTorch nn classes to trusted class allowlist
                 if hasattr(torch.serialization, 'add_safe_globals'):
                     import ultralytics.nn.tasks
-                    torch.serialization.add_safe_globals([ultralytics.nn.tasks.DetectionModel])
-                    logger.info("✅ Added ultralytics safe globals for PyTorch 2.6+")
+                    import torch.nn.modules.container
+                    import torch.nn.modules.activation
+                    import torch.nn.modules.batchnorm
+                    import torch.nn.modules.conv
+                    import torch.nn.modules.pooling
+                    import torch.nn.modules.linear
+                    import torch.nn.modules.dropout
+                    import torch.nn.modules.upsampling
+                    
+                    # Allowlist all required classes for YOLO model loading
+                    torch.serialization.add_safe_globals([
+                        ultralytics.nn.tasks.DetectionModel,
+                        torch.nn.modules.container.Sequential,
+                        torch.nn.modules.container.ModuleList,
+                        torch.nn.modules.activation.SiLU,
+                        torch.nn.modules.batchnorm.BatchNorm2d,
+                        torch.nn.modules.conv.Conv2d,
+                        torch.nn.modules.pooling.MaxPool2d,
+                        torch.nn.modules.linear.Linear,
+                        torch.nn.modules.dropout.Dropout,
+                        torch.nn.modules.upsampling.Upsample,
+                    ])
+                    logger.info("✅ Added PyTorch + ultralytics safe globals for PyTorch 2.6+")
                 
                 # Use pretrained model (will auto-download on first run)
                 self.model = YOLO('yolov8n.pt')
