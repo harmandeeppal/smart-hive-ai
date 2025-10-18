@@ -283,8 +283,8 @@ class AudioProcessor:
             delta = librosa.feature.delta(mfcc, order=1)
             delta_delta = librosa.feature.delta(mfcc, order=2)
             
-            # Debug: Log shapes
-            logger.debug(f"MFCC shape: {mfcc.shape}, Delta shape: {delta.shape}, Delta² shape: {delta_delta.shape}")
+            # Log shapes (changed to INFO to see in logs)
+            logger.info(f"📊 MFCC shape: {mfcc.shape}, Delta: {delta.shape}, Delta²: {delta_delta.shape}")
             
             # Verify shapes match
             if delta.shape != mfcc.shape or delta_delta.shape != mfcc.shape:
@@ -313,7 +313,7 @@ class AudioProcessor:
                     ])
                     coeffs_processed += 1
             
-            logger.debug(f"Processed {coeffs_processed} coefficient tracks (expected 39: 13×3)")
+            logger.info(f"📊 Processed {coeffs_processed} coefficient tracks (expected 39 for 13 MFCC × 3 types)")
             
             features = np.array(features, dtype=np.float32)
             
