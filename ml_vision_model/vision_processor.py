@@ -90,28 +90,28 @@ class VisionProcessor:
             from ultralytics import YOLO
             import torch
             
-            # Add safe globals for PyTorch 2.6+ compatibility
-            # This allows loading YOLO models trained with older PyTorch versions
+            # PyTorch 2.6 compatibility: Disable weights_only mode for trusted YOLO models
+            # The YOLO model from ultralytics contains many custom classes that would need
+            # to be individually allowlisted. Since we trust this model source, we can safely
+            # use weights_only=False for loading.
             try:
-                from ultralytics.nn.tasks import DetectionModel
-                import torch.nn.modules.container as container
+                # Temporarily set torch.load to use weights_only=False
+                original_load = torch.load
+                torch.load = lambda *args, **kwargs: original_load(*args, **{**kwargs, 'weights_only': False})
                 
-                # Add all necessary PyTorch classes for YOLO model loading
-                safe_classes = [
-                    DetectionModel,
-                    container.Sequential,
-                    torch.nn.modules.conv.Conv2d,
-                    torch.nn.modules.pooling.MaxPool2d,
-                    torch.nn.modules.activation.SiLU,
-                    torch.nn.modules.batchnorm.BatchNorm2d,
-                    torch.nn.modules.upsampling.Upsample,
-                ]
-                torch.serialization.add_safe_globals(safe_classes)
+                self.model = YOLO(model_path)
+                logger.info("✅ YOLO model loaded successfully")
+                
+                # Restore original torch.load
+                torch.load = original_load
             except Exception as e:
-                logger.warning(f"Could not add PyTorch safe globals: {e}")
+                # Restore torch.load even if error occurs
+                try:
+                    torch.load = original_load
+                except:
+                    pass
+                raise e
             
-            self.model = YOLO(model_path)
-            logger.info("✅ YOLO model loaded successfully")
         except FileNotFoundError as e:
             logger.error(f"❌ Model file not found: {e}")
             logger.warning("Vision model will be disabled. System will continue without vision detection.")
