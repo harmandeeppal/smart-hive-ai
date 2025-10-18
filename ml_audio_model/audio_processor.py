@@ -283,6 +283,9 @@ class AudioProcessor:
             delta = librosa.feature.delta(mfcc, order=1)
             delta_delta = librosa.feature.delta(mfcc, order=2)
             
+            # Debug: Log shapes
+            logger.debug(f"MFCC shape: {mfcc.shape}, Delta shape: {delta.shape}, Delta² shape: {delta_delta.shape}")
+            
             # Verify shapes match
             if delta.shape != mfcc.shape or delta_delta.shape != mfcc.shape:
                 logger.error(f"❌ Shape mismatch: MFCC {mfcc.shape}, Delta {delta.shape}, Delta² {delta_delta.shape}")
@@ -290,10 +293,12 @@ class AudioProcessor:
             
             # Compute 8 statistics for each coefficient track
             features = []
+            coeffs_processed = 0
             for mat_idx, mat in enumerate((mfcc, delta, delta_delta)):
+                mat_name = ['MFCC', 'Delta', 'Delta²'][mat_idx]
                 for coeff_idx, coeff_track in enumerate(mat):  # Each row is one coefficient over time
                     if len(coeff_track) == 0:
-                        logger.error(f"❌ Empty coefficient track at matrix {mat_idx}, coeff {coeff_idx}")
+                        logger.error(f"❌ Empty coefficient track at {mat_name}[{coeff_idx}]")
                         return None
                     
                     features.extend([
@@ -306,6 +311,9 @@ class AudioProcessor:
                         np.percentile(coeff_track, 75),
                         np.var(coeff_track)
                     ])
+                    coeffs_processed += 1
+            
+            logger.debug(f"Processed {coeffs_processed} coefficient tracks (expected 39: 13×3)")
             
             features = np.array(features, dtype=np.float32)
             
@@ -389,6 +397,8 @@ class AudioProcessor:
             # Step 2: Extract features from each window
             window_features = []
             failed_windows = []
+            feature_counts = set()  # Track unique feature counts
+            
             for i, window in enumerate(windows):
                 features = self.extract_features(window)
                 if features is None:
@@ -396,13 +406,30 @@ class AudioProcessor:
                     logger.warning(f"⚠️  Failed to extract features from window {i+1}/{len(windows)} (length: {len(window)} samples)")
                     continue
                 
+                # Track feature count
+                feature_counts.add(features.shape[1])
+                
                 # Verify feature shape
                 if features.shape[1] != 312:
                     failed_windows.append(i+1)
-                    logger.warning(f"⚠️  Window {i+1} produced {features.shape[1]} features instead of 312")
+                    logger.warning(f"⚠️  Window {i+1} produced {features.shape[1]} features instead of 312 (window length: {len(window)} samples)")
+                    # Log first failed window in detail
+                    if len(failed_windows) == 1:
+                        logger.error(f"   First failed window details:")
+                        logger.error(f"   - Window length: {len(window)} samples ({len(window)/self.sample_rate:.3f}s)")
+                        logger.error(f"   - Feature shape: {features.shape}")
+                        logger.error(f"   - Feature count: {features.shape[1]} (expected 312)")
                     continue
                     
                 window_features.append(features)
+            
+            # Report feature count variations
+            if len(feature_counts) > 1:
+                logger.error(f"❌ Inconsistent feature counts across windows: {sorted(feature_counts)}")
+            elif len(feature_counts) == 1:
+                actual_count = list(feature_counts)[0]
+                if actual_count != 312:
+                    logger.error(f"❌ All windows producing {actual_count} features instead of 312!")
             
             if failed_windows:
                 logger.warning(f"⚠️  Failed to extract features from {len(failed_windows)} windows: {failed_windows[:5]}{'...' if len(failed_windows) > 5 else ''}")
