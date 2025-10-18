@@ -23,6 +23,8 @@ services:
     image: smart-hive-edge:latest
     container_name: smart-hive-edge
     restart: unless-stopped
+    env_file:
+      - .env
     networks:
       - smart-hive-net
     ports:
