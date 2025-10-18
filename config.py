@@ -318,3 +318,16 @@ AUDIO_RECORDINGS_DIR = "audio_recordings"
 
 # MQTT topic for audio results
 TOPIC_AUDIO_RESULTS = "hive/audio/classification"
+
+# -
+# WINDOWED INFERENCE SETTINGS (MUST MATCH TRAINING)
+# 
+# Window size in seconds for sliding window inference
+AUDIO_WINDOW_SECONDS = 1.0
+
+# Hop size in seconds (overlap between windows)
+AUDIO_HOP_SECONDS = 0.5
+
+# Aggregation method for combining per-window predictions
+AUDIO_AGGREGATION_METHOD = 'max_proba'
+

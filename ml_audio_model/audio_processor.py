@@ -58,7 +58,10 @@ class AudioProcessor:
         sample_rate: int = 22050,
         confidence_threshold: float = 0.6,
         save_recordings: bool = False,
-        recordings_dir: str = "audio_recordings"
+        recordings_dir: str = "audio_recordings",
+        window_seconds: float = 1.0,
+        hop_seconds: float = 0.5,
+        aggregation_method: str = 'max_proba'
     ):
         """
         Initialize audio processor with pre-trained model.
@@ -69,6 +72,9 @@ class AudioProcessor:
             confidence_threshold (float): Min confidence for classification (0.5-0.95)
             save_recordings (bool): Whether to save recorded audio files
             recordings_dir (str): Directory to save audio files
+            window_seconds (float): Window size for windowed inference (default 1.0s)
+            hop_seconds (float): Hop size for windowed inference (default 0.5s)
+            aggregation_method (str): Aggregation method ('max_proba', 'mean_proba', 'majority_vote')
         
         Raises:
             FileNotFoundError: If model file not found
@@ -78,6 +84,9 @@ class AudioProcessor:
         self.confidence_threshold = confidence_threshold
         self.save_recordings = save_recordings
         self.recordings_dir = recordings_dir
+        self.window_seconds = window_seconds
+        self.hop_seconds = hop_seconds
+        self.aggregation_method = aggregation_method
         self.enabled = True
         self.last_result = {
             "classification": "unknown",
@@ -85,6 +94,7 @@ class AudioProcessor:
             "status": "idle"
         }
         self.model = None
+        self.model_dict = None  # Store full model pipeline
         
         # Create recordings directory if needed
         if save_recordings:
@@ -93,8 +103,22 @@ class AudioProcessor:
         # Load model
         try:
             logger.info(f"Loading audio model from {model_path}")
-            self.model = joblib.load(model_path)
-            logger.info("✅ Audio model loaded successfully")
+            self.model_dict = joblib.load(model_path)
+            
+            # Check if it's a dictionary with pipeline components or just a model
+            if isinstance(self.model_dict, dict):
+                self.model = self.model_dict.get('model')
+                logger.info("✅ Audio model pipeline loaded successfully")
+                logger.info(f"   Components: {list(self.model_dict.keys())}")
+            else:
+                # Old format: just the model
+                self.model = self.model_dict
+                self.model_dict = {'model': self.model}
+                logger.info("✅ Audio model loaded successfully (legacy format)")
+            
+            logger.info(f"   Windowing: {self.window_seconds}s windows, {self.hop_seconds}s hop")
+            logger.info(f"   Aggregation: {self.aggregation_method}")
+            
         except FileNotFoundError:
             logger.error(f"❌ Model file not found: {model_path}")
             logger.warning("Audio model will be disabled. System will continue without audio analysis.")
@@ -228,6 +252,181 @@ class AudioProcessor:
             logger.error(f"❌ Feature extraction failed: {e}")
             return None
     
+    def create_windows(self, audio_data: np.ndarray) -> list:
+        """
+        Split audio into overlapping windows for windowed inference.
+        
+        Args:
+            audio_data (np.ndarray): Audio time series
+        
+        Returns:
+            List[np.ndarray]: List of audio windows
+        """
+        window_samples = int(self.window_seconds * self.sample_rate)
+        hop_samples = int(self.hop_seconds * self.sample_rate)
+        
+        windows = []
+        start = 0
+        
+        while start + window_samples <= len(audio_data):
+            window = audio_data[start:start + window_samples]
+            windows.append(window)
+            start += hop_samples
+        
+        # Handle last partial window if >50% of window size
+        if start < len(audio_data):
+            remaining = len(audio_data) - start
+            if remaining >= window_samples * 0.5:
+                # Pad the last window to full size
+                window = audio_data[start:]
+                window = np.pad(window, (0, window_samples - len(window)), mode='constant')
+                windows.append(window)
+        
+        logger.debug(f"Created {len(windows)} windows from {len(audio_data)} samples")
+        return windows
+    
+    def classify_windows(self, audio_data: np.ndarray) -> Dict:
+        """
+        Classify audio using windowed inference with aggregation.
+        
+        This is the recommended method that matches the training approach:
+        1. Split audio into 1s windows with 0.5s hop
+        2. Extract features from each window
+        3. Predict for each window
+        4. Aggregate predictions (mean_proba or max_proba)
+        
+        Args:
+            audio_data (np.ndarray): Audio time series
+        
+        Returns:
+            Dict with keys:
+                - classification: "queen_present" or "queen_absent"
+                - confidence: Aggregated confidence score (0.0-1.0)
+                - method: Aggregation method used
+                - n_windows: Number of windows processed
+                - window_results: List of per-window predictions
+        """
+        try:
+            # Step 1: Create windows
+            windows = self.create_windows(audio_data)
+            logger.info(f"Processing {len(windows)} windows ({self.window_seconds}s each, {self.hop_seconds}s hop)")
+            
+            # Step 2: Extract features from each window
+            window_features = []
+            for i, window in enumerate(windows):
+                features = self.extract_features(window)
+                if features is None:
+                    logger.warning(f"Failed to extract features from window {i+1}")
+                    continue
+                window_features.append(features)
+            
+            if not window_features:
+                logger.error("No valid features extracted from any window")
+                return {"classification": "error", "confidence": 0.0, "error": "feature_extraction_failed"}
+            
+            # Stack into matrix (n_windows, n_features)
+            features_matrix = np.vstack(window_features)
+            logger.debug(f"Feature matrix shape: {features_matrix.shape}")
+            
+            # Step 3: Apply model pipeline (feature selection, scaling, prediction)
+            X = features_matrix
+            
+            # Apply feature selector if present
+            if 'feature_selector' in self.model_dict and self.model_dict['feature_selector'] is not None:
+                X = self.model_dict['feature_selector'].transform(X)
+                logger.debug(f"After feature selection: {X.shape}")
+            
+            # Apply scaler if present
+            if 'scaler' in self.model_dict and self.model_dict['scaler'] is not None:
+                X = self.model_dict['scaler'].transform(X)
+                logger.debug(f"After scaling: {X.shape}")
+            
+            # Step 4: Predict for each window
+            predictions = self.model.predict(X)
+            
+            # Get probabilities
+            try:
+                probabilities = self.model.predict_proba(X)
+            except AttributeError:
+                # Model doesn't support predict_proba
+                probabilities = np.zeros((len(predictions), 2))
+                probabilities[np.arange(len(predictions)), predictions.astype(int)] = 1.0
+            
+            # Step 5: Aggregate predictions
+            result = self._aggregate_predictions(predictions, probabilities)
+            
+            logger.info(f"Windowed classification: {result['classification']} (confidence: {result['confidence']:.3f})")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Windowed classification failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return {"classification": "error", "confidence": 0.0, "error": str(e)}
+    
+    def _aggregate_predictions(self, predictions: np.ndarray, probabilities: np.ndarray) -> Dict:
+        """
+        Aggregate per-window predictions into final classification.
+        
+        Args:
+            predictions (np.ndarray): Array of predicted class labels
+            probabilities (np.ndarray): Array of prediction probabilities (n_windows, 2)
+        
+        Returns:
+            Dict with aggregated results
+        """
+        n_windows = len(predictions)
+        
+        # Get confidence scores for positive class (queen_present = 1)
+        positive_probabilities = probabilities[:, 1]
+        
+        if self.aggregation_method == 'max_proba':
+            # Use maximum confidence across all windows (conservative)
+            final_confidence = np.max(positive_probabilities)
+            final_prediction = 1 if final_confidence >= self.confidence_threshold else 0
+        
+        elif self.aggregation_method == 'mean_proba':
+            # Use average confidence across all windows (balanced)
+            final_confidence = np.mean(positive_probabilities)
+            final_prediction = 1 if final_confidence >= self.confidence_threshold else 0
+        
+        elif self.aggregation_method == 'majority_vote':
+            # Use majority class
+            final_prediction = 1 if np.sum(predictions) > len(predictions) / 2 else 0
+            final_confidence = np.mean(positive_probabilities)
+        
+        else:
+            logger.warning(f"Unknown aggregation method: {self.aggregation_method}, using max_proba")
+            final_confidence = np.max(positive_probabilities)
+            final_prediction = 1 if final_confidence >= self.confidence_threshold else 0
+        
+        # Decode label
+        if 'label_encoder' in self.model_dict and self.model_dict['label_encoder'] is not None:
+            try:
+                final_label = self.model_dict['label_encoder'].inverse_transform([final_prediction])[0]
+            except:
+                final_label = "queen_present" if final_prediction == 1 else "queen_absent"
+        else:
+            final_label = "queen_present" if final_prediction == 1 else "queen_absent"
+        
+        # Compile per-window results
+        window_results = []
+        for i, (pred, prob) in enumerate(zip(predictions, probabilities)):
+            window_results.append({
+                'window': i + 1,
+                'prediction': int(pred),
+                'confidence': float(prob[int(pred)]),
+                'queen_proba': float(prob[1])
+            })
+        
+        return {
+            'classification': final_label,
+            'confidence': float(final_confidence),
+            'method': self.aggregation_method,
+            'n_windows': n_windows,
+            'window_results': window_results
+        }
+    
     def classify(self, features: np.ndarray) -> Dict:
         """
         Classify features using pre-trained model.
@@ -263,12 +462,13 @@ class AudioProcessor:
             logger.error(f"❌ Classification failed: {e}")
             return {"classification": "error", "confidence": 0.0}
     
-    def record_and_classify(self, duration_sec: int = 30) -> Dict:
+    def record_and_classify(self, duration_sec: int = 30, use_windowing: bool = True) -> Dict:
         """
         Record audio and classify in one operation.
         
         Args:
             duration_sec (int): Recording duration (default 30s)
+            use_windowing (bool): Use windowed inference (recommended, default True)
         
         Returns:
             Dict with keys:
@@ -278,6 +478,8 @@ class AudioProcessor:
                 - timestamp: Recording timestamp
                 - saved_path: Path to saved audio (if saved)
                 - status: "complete" / "failed"
+                - method: Aggregation method (if windowing used)
+                - n_windows: Number of windows (if windowing used)
         """
         if not self.enabled or self.model is None:
             return {"error": "Audio processor disabled", "status": "failed"}
@@ -288,15 +490,22 @@ class AudioProcessor:
             if audio_data is None:
                 return {"error": "Recording failed", "status": "failed"}
             
-            # Extract features
-            features = self.extract_features(audio_data)
-            if features is None:
-                return {"error": "Feature extraction failed", "status": "failed"}
-            
-            # Classify
-            classification = self.classify(features)
-            if classification["classification"] == "error":
-                return {"error": "Classification failed", "status": "failed"}
+            # Classify using windowed inference (recommended)
+            if use_windowing:
+                logger.info("Using windowed inference (recommended)")
+                classification = self.classify_windows(audio_data)
+                if classification.get("classification") == "error":
+                    return {"error": "Classification failed", "status": "failed"}
+            else:
+                # Legacy: Extract features from entire audio and classify
+                logger.warning("Using legacy whole-file inference (not recommended)")
+                features = self.extract_features(audio_data)
+                if features is None:
+                    return {"error": "Feature extraction failed", "status": "failed"}
+                
+                classification = self.classify(features)
+                if classification["classification"] == "error":
+                    return {"error": "Classification failed", "status": "failed"}
             
             # Save if enabled
             saved_path = None
