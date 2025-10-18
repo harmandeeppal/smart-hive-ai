@@ -194,13 +194,15 @@ class SmartHiveSystem:
         self.mqtt_client.on_connect = self.on_mqtt_connect
         self.mqtt_client.on_message = self.on_control_message
 
-        self.mqtt_client.tls_set(ca_certs=config.CA_PATH, certfile=config.CERT_PATH, keyfile=config.KEY_PATH,
-                                 cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS)
+        # OPTION A: Use local mosquitto broker for microservices architecture
+        # Dashboard and ML services subscribe to local broker
         try:
-            self.mqtt_client.connect(config.AWS_ENDPOINT, 8883, 60)
+            print(f"Connecting to local MQTT broker: {config.MQTT_BROKER}:{config.MQTT_PORT}")
+            self.mqtt_client.connect(config.MQTT_BROKER, config.MQTT_PORT, 60)
             self.mqtt_client.loop_start()
+            print(f"✅ Connected to local MQTT broker successfully")
         except Exception as e:
-            print(f"FATAL: Error connecting to AWS IoT Core: {e}")
+            print(f"FATAL: Error connecting to local MQTT broker: {e}")
             self.is_running = False
 
         # Initialize S3 client (only if enabled and not in mock environment)
