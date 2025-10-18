@@ -90,6 +90,11 @@ class SmartHiveSystem:
         print("Initializing Smart Hive System...")
         self.is_running = True
         
+        # NEW: Video and AI Vision control flags
+        self.video_enabled = True        # Video ON by default
+        self.ai_vision_enabled = False   # AI OFF by default (save CPU)
+        self.camera_available = False    # Will be set after camera check
+        
         try:
             self.initialize_components()
         except Exception as e:
@@ -178,6 +183,29 @@ class SmartHiveSystem:
                 import traceback
                 traceback.print_exc()
                 raise  # Re-raise because vision is critical
+        
+        # NEW: Check camera availability after vision processor initialization
+        self._check_camera_availability()
+    
+    def _check_camera_availability(self):
+        """Check if camera is actually available and working."""
+        try:
+            if self.vision_processor and hasattr(self.vision_processor, 'camera'):
+                if self.vision_processor.camera and self.vision_processor.camera.isOpened():
+                    # Test read to confirm camera works
+                    ret, frame = self.vision_processor.camera.read()
+                    if ret and frame is not None:
+                        width = self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
+                        height = self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                        print(f"✅ Camera available: {int(width)}x{int(height)}")
+                        self.camera_available = True
+                        return
+            
+            print("⚠️  Camera not available - will use fallback frames")
+            self.camera_available = False
+        except Exception as e:
+            print(f"⚠️  Camera check failed: {e}")
+            self.camera_available = False
 
     def initialize_aws_clients(self):
         """
@@ -244,6 +272,10 @@ class SmartHiveSystem:
             print("Successfully connected to AWS IoT Core.")
             client.subscribe(config.TOPIC_CONTROL)
             print(f"Subscribed to control topic: {config.TOPIC_CONTROL}")
+            # NEW: Subscribe to video and AI vision control topics
+            client.subscribe('hive/control/video')
+            client.subscribe('hive/control/ai_vision')
+            print("✅ Subscribed to video and AI vision control topics")
         else:
             print(f"Failed to connect to AWS IoT Core, return code {rc}\n. Retrying...")
 
@@ -251,6 +283,31 @@ class SmartHiveSystem:
         """Callback for handling commands from the dashboard."""
         try:
             payload = json.loads(msg.payload.decode())
+            
+            # Handle video stream control
+            if msg.topic == 'hive/control/video':
+                state = payload.get("state", "on").lower()
+                self.video_enabled = (state == "on")
+                print(f"📹 Video stream: {'ENABLED' if self.video_enabled else 'DISABLED'}")
+                # Publish status update
+                self.mqtt_client.publish('hive/status/video', 
+                                        json.dumps({"enabled": self.video_enabled}))
+                return
+            
+            # Handle AI vision control
+            if msg.topic == 'hive/control/ai_vision':
+                state = payload.get("state", "off").lower()
+                self.ai_vision_enabled = (state == "on")
+                # Also control vision processor if available
+                if self.vision_processor and hasattr(self.vision_processor, 'enabled'):
+                    self.vision_processor.enabled = self.ai_vision_enabled
+                print(f"🤖 AI Vision: {'ENABLED' if self.ai_vision_enabled else 'DISABLED'}")
+                # Publish status update
+                self.mqtt_client.publish('hive/status/ai_vision',
+                                        json.dumps({"enabled": self.ai_vision_enabled}))
+                return
+            
+            # Handle sensor control (existing functionality)
             sensor = payload.get("sensor")
             state = payload.get("state")
 
@@ -281,29 +338,59 @@ class SmartHiveSystem:
 
     def generate_video_frames(self):
         """
-        A generator function that continuously yields JPEG-encoded frames
-        from the vision processor. Captures frames directly for live streaming.
+        A generator function that continuously yields JPEG-encoded frames.
+        Supports separate video and AI vision toggles:
+        - video_enabled: Controls camera streaming ON/OFF
+        - ai_vision_enabled: Controls AI bounding box overlay ON/OFF
         """
+        import numpy as np
         # Calculate delay based on configured FPS
         frame_delay = 1.0 / config.VIDEO_STREAM_FPS
         
-        # Check if camera is available before starting stream
-        if not self.vision_processor or not hasattr(self.vision_processor, 'camera') or not self.vision_processor.camera:
-            # Camera not available - send error frame
-            error_msg = b"Camera not initialized"
-            yield (b'--frame\r\n'
-                   b'Content-Type: text/plain\r\n\r\n' + error_msg + b'\r\n')
-            return
-        
         while self.is_running:
+            # Check video toggle state
+            if not self.video_enabled:
+                # Video turned OFF - send black frame with message
+                black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(black_frame, "Video Feed Disabled", (150, 240),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                cv2.putText(black_frame, "Click 'Video: ON' to enable", (140, 280),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+                ret, buffer = cv2.imencode('.jpg', black_frame)
+                if ret:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                time.sleep(frame_delay)
+                continue
+            
+            # Video enabled - check camera availability
+            if not self.camera_available or not self.vision_processor or \
+               not hasattr(self.vision_processor, 'camera') or not self.vision_processor.camera:
+                # No camera - send error frame
+                error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(error_frame, "Camera Not Available", (150, 220),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.putText(error_frame, "Check camera connection", (160, 260),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+                ret, buffer = cv2.imencode('.jpg', error_frame)
+                if ret:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                time.sleep(frame_delay)
+                continue
+            
             # Capture a fresh frame directly from camera for live streaming
-            # This is separate from AI detection which runs at slower intervals
-            if self.vision_processor.camera and self.vision_processor.camera.isOpened():
+            if self.vision_processor.camera.isOpened():
                 ret, frame = self.vision_processor.camera.read()
                 if ret and frame is not None:
-                    # Use the stored annotated frame from vision loop if available and recent
-                    # Otherwise use the raw frame
-                    display_frame = self.vision_processor.frame if self.vision_processor.frame is not None else frame
+                    # Decide which frame to display based on AI toggle
+                    if self.ai_vision_enabled and hasattr(self.vision_processor, 'frame') and \
+                       self.vision_processor.frame is not None:
+                        # AI enabled - use annotated frame with bounding boxes
+                        display_frame = self.vision_processor.frame
+                    else:
+                        # AI disabled - use raw frame (no processing)
+                        display_frame = frame
                     
                     # Encode the frame as a JPEG
                     ret, buffer = cv2.imencode('.jpg', display_frame)

@@ -63,9 +63,74 @@ header h1 { margin: 0; font-size: 1.5rem; }
 
 /* AI Vision Card Styles */
 #video-card { grid-column: span 2; /* Make video card wider */ }
-#video-card img { border-radius: 4px; background-color: #000; }
-.ai-status { display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; color: #606770; }
+
+/* Video Container */
+.video-container {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 300px;
+}
+
+#video-feed {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: opacity 0.3s, filter 0.3s;
+}
+
+/* AI Status Indicators */
+.ai-status { 
+    display: flex; 
+    justify-content: space-around; 
+    margin: 1rem 0; 
+    font-size: 0.9rem; 
+    color: #606770;
+}
+.ai-status strong { color: #00ff88; }
 #ai-status-text.detected { color: #28a745; font-weight: bold; }
+
+/* Video Controls Container */
+.video-controls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    justify-content: center;
+}
+
+/* Video Toggle Button (green when on) */
+.video-toggle {
+    background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+    flex: 1;
+    box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);
+}
+
+.video-toggle:hover {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+}
+
+.video-toggle[data-state="off"] {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
+}
+
+/* AI Vision Toggle Button (blue when on) */
+.ai-toggle {
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    flex: 1;
+    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.3);
+}
+
+.ai-toggle:hover {
+    opacity: 0.9;
+}
+
+.ai-toggle[data-state="on"],
+.ai-toggle.ai-active {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    box-shadow: 0 4px 6px rgba(0, 123, 255, 0.3);
+}
 
 /* Toggle Button Styles */
 .toggle-btn { background-color: #4267B2; color: white; border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; margin-top: auto; /* Pushes button to bottom */ }

@@ -73,15 +73,32 @@
             <button class="toggle-btn" data-sensor="sound">Toggle: ON</button>
         </div>
 
-        <!-- AI Vision Card -->
+        <!-- AI Vision Card with TWO TOGGLES -->
         <div class="card" id="video-card">
-            <h2>AI Vision - Live Feed</h2>
-            <img src="{{ url_for('video_feed') }}" width="100%" alt="Live video feed from the hive.">
-            <div class="ai-status">
-                <span>AI Status: <strong id="ai-status-text">--</strong></span>
-                <span>Last Snapshot: <strong id="ai-snapshot-time">--</strong></span>
+            <h2>📹 Live Video Feed</h2>
+            
+            <!-- Video Stream Image -->
+            <div class="video-container">
+                <img id="video-feed" src="{{ url_for('video_feed') }}" 
+                     width="100%" alt="Live video feed">
             </div>
-            <button class="toggle-btn" data-sensor="vision">Toggle: ON</button>
+            
+            <!-- Status Display -->
+            <div class="ai-status">
+                <span>🎥 Video: <strong id="video-status-text">ON</strong></span>
+                <span>🤖 AI Vision: <strong id="ai-vision-status-text">OFF</strong></span>
+                <span>Last Detection: <strong id="ai-snapshot-time">--</strong></span>
+            </div>
+            
+            <!-- TWO SEPARATE TOGGLE BUTTONS -->
+            <div class="video-controls">
+                <button class="toggle-btn video-toggle" id="video-toggle-btn" data-state="on">
+                    📹 Video: <span class="toggle-state">ON</span>
+                </button>
+                <button class="toggle-btn ai-toggle" id="ai-vision-toggle-btn" data-state="off">
+                    🤖 AI Vision: <span class="toggle-state">OFF</span>
+                </button>
+            </div>
         </div>
 
         <!-- AI Audio Analysis Card (NEW - Enhanced with Waveform) -->
