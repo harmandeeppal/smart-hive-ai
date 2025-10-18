@@ -99,6 +99,7 @@ class VisionProcessor:
                 original_load = torch.load
                 torch.load = lambda *args, **kwargs: original_load(*args, **{**kwargs, 'weights_only': False})
                 
+                logger.info(f"Attempting to load YOLO model with weights_only=False...")
                 self.model = YOLO(model_path)
                 logger.info("✅ YOLO model loaded successfully")
                 
@@ -110,6 +111,10 @@ class VisionProcessor:
                     torch.load = original_load
                 except:
                     pass
+                # Log the full exception for debugging
+                import traceback
+                logger.error(f"YOLO loading exception: {type(e).__name__}: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 raise e
             
         except FileNotFoundError as e:
