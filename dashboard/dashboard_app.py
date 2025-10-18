@@ -157,18 +157,21 @@ def setup_mqtt():
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
     
-    # Configure TLS connection with AWS IoT certificates
-    mqtt_client.tls_set(ca_certs=config.CA_PATH, 
-                       certfile=config.CERT_PATH, 
-                       keyfile=config.KEY_PATH,
-                       cert_reqs=ssl.CERT_REQUIRED, 
-                       tls_version=ssl.PROTOCOL_TLS)
-    
-    # Connect to AWS IoT Core MQTT broker
-    mqtt_client.connect(config.AWS_ENDPOINT, 8883, 60)
-    
-    # Start MQTT network loop in background thread
-    mqtt_client.loop_start()
+    # Connect to local MQTT broker (Mosquitto in Docker)
+    # Using docker service name "mosquitto" as hostname
+    try:
+        mqtt_broker = os.getenv('MQTT_BROKER', 'mosquitto')
+        mqtt_port = int(os.getenv('MQTT_PORT', 1883))
+        
+        print(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
+        mqtt_client.connect(mqtt_broker, mqtt_port, 60)
+        
+        # Start MQTT network loop in background thread
+        mqtt_client.loop_start()
+        print("MQTT client started successfully")
+    except Exception as e:
+        print(f"Warning: Could not connect to MQTT broker: {e}")
+        print("Dashboard will continue running without MQTT updates")
 
 
 @socketio.on('connect')
@@ -263,5 +266,6 @@ if __name__ == '__main__':
     print("Starting Flask-SocketIO server...")
     # Run Socket.IO server on all interfaces, port 5000
     # use_reloader=False prevents double execution in debug mode
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, 
+    # debug=False for production/Docker deployment
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, 
                  use_reloader=False, allow_unsafe_werkzeug=True)
