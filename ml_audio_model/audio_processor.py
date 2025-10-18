@@ -233,50 +233,54 @@ class AudioProcessor:
     
     def extract_features(self, audio_data: np.ndarray) -> Optional[np.ndarray]:
         """
-        Extract MFCC features from audio.
+        Extract MFCC features from audio matching training configuration.
+        
+        Model was trained with 52 MFCC coefficients, producing 312 features:
+        - 52 MFCC coefficients × 6 statistics = 312 features
         
         Extracts:
-        - 13 MFCC coefficients
-        - Delta (first derivative)
-        - Delta-Delta (second derivative)
+        - 52 MFCC coefficients (mean + std)
+        - 52 Delta coefficients (mean + std)
+        - 52 Delta-Delta coefficients (mean + std)
+        Total: 312 features
         
         Args:
             audio_data (np.ndarray): Audio time series
         
         Returns:
-            np.ndarray: Feature matrix (1, n_features) or None on error
+            np.ndarray: Feature matrix (1, 312) or None on error
         """
         try:
             import librosa
             
-            # Extract MFCC
+            # Extract 52 MFCC coefficients (matching training)
             mfcc = librosa.feature.mfcc(
                 y=audio_data,
                 sr=self.sample_rate,
-                n_mfcc=13
+                n_mfcc=52  # Changed from 13 to 52 to match training
             )
             
             # Compute statistics: mean and std for each coefficient
-            mfcc_mean = np.mean(mfcc, axis=1)
-            mfcc_std = np.std(mfcc, axis=1)
+            mfcc_mean = np.mean(mfcc, axis=1)   # Shape: (52,)
+            mfcc_std = np.std(mfcc, axis=1)     # Shape: (52,)
             
             # Extract delta and delta-delta
             delta = librosa.feature.delta(mfcc)
-            delta_mean = np.mean(delta, axis=1)
-            delta_std = np.std(delta, axis=1)
+            delta_mean = np.mean(delta, axis=1)       # Shape: (52,)
+            delta_std = np.std(delta, axis=1)         # Shape: (52,)
             
             delta_delta = librosa.feature.delta(mfcc, order=2)
-            delta_delta_mean = np.mean(delta_delta, axis=1)
-            delta_delta_std = np.std(delta_delta, axis=1)
+            delta_delta_mean = np.mean(delta_delta, axis=1)  # Shape: (52,)
+            delta_delta_std = np.std(delta_delta, axis=1)    # Shape: (52,)
             
-            # Combine all features
+            # Combine all features: 52 + 52 + 52 + 52 + 52 + 52 = 312 features
             features = np.concatenate([
                 mfcc_mean, mfcc_std,
                 delta_mean, delta_std,
                 delta_delta_mean, delta_delta_std
             ])
             
-            logger.debug(f"Extracted {len(features)} features")
+            logger.debug(f"Extracted {len(features)} features (52 MFCC × 6 stats)")
             return features.reshape(1, -1)  # Return as 2D array for model
         
         except ImportError:

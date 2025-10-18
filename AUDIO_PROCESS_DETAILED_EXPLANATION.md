@@ -429,7 +429,7 @@ Each window overlaps 50% with previous/next window
 
 ### MFCC (Mel-Frequency Cepstral Coefficients)
 
-**Location**: `ml_audio_model/audio_processor.py` (Lines 200-256)
+**Location**: `ml_audio_model/audio_processor.py` (Lines 234-289)
 
 ```python
 def extract_features(self, audio_data: np.ndarray) -> Optional[np.ndarray]:
@@ -437,52 +437,52 @@ def extract_features(self, audio_data: np.ndarray) -> Optional[np.ndarray]:
     Extract MFCC features matching training methodology.
     
     Feature Set:
-        - 13 MFCC coefficients (mean + std)       = 26 features
-        - 13 Delta (Δ) coefficients (mean + std)  = 26 features
-        - 13 Delta-Delta (Δ²) (mean + std)        = 26 features
+        - 52 MFCC coefficients (mean + std)       = 104 features
+        - 52 Delta (Δ) coefficients (mean + std)  = 104 features
+        - 52 Delta-Delta (Δ²) (mean + std)        = 104 features
         ─────────────────────────────────────────────────────
-        TOTAL                                     = 78 features
+        TOTAL                                     = 312 features
     
     Returns:
-        np.ndarray: Shape (1, 78) - Ready for model input
+        np.ndarray: Shape (1, 312) - Ready for model input
     """
     try:
         import librosa
         
-        # 1. Extract MFCC (13 coefficients)
+        # 1. Extract MFCC (52 coefficients - matching training)
         mfcc = librosa.feature.mfcc(
             y=audio_data,
             sr=self.sample_rate,
-            n_mfcc=13  # Standard for speech/audio
+            n_mfcc=52  # Model trained with 52, not 13
         )
-        # Shape: (13, time_frames)
+        # Shape: (52, time_frames)
         
         # 2. Compute statistics: mean and std for each coefficient
-        mfcc_mean = np.mean(mfcc, axis=1)  # Shape: (13,)
-        mfcc_std = np.std(mfcc, axis=1)    # Shape: (13,)
+        mfcc_mean = np.mean(mfcc, axis=1)  # Shape: (52,)
+        mfcc_std = np.std(mfcc, axis=1)    # Shape: (52,)
         
         # 3. Extract Delta (first derivative - rate of change)
         delta = librosa.feature.delta(mfcc)
-        delta_mean = np.mean(delta, axis=1)  # Shape: (13,)
-        delta_std = np.std(delta, axis=1)    # Shape: (13,)
+        delta_mean = np.mean(delta, axis=1)  # Shape: (52,)
+        delta_std = np.std(delta, axis=1)    # Shape: (52,)
         
         # 4. Extract Delta-Delta (second derivative - acceleration)
         delta_delta = librosa.feature.delta(mfcc, order=2)
-        delta_delta_mean = np.mean(delta_delta, axis=1)  # Shape: (13,)
-        delta_delta_std = np.std(delta_delta, axis=1)    # Shape: (13,)
+        delta_delta_mean = np.mean(delta_delta, axis=1)  # Shape: (52,)
+        delta_delta_std = np.std(delta_delta, axis=1)    # Shape: (52,)
         
         # 5. Combine all features into single vector
         features = np.concatenate([
-            mfcc_mean,        # 13 features
-            mfcc_std,         # 13 features
-            delta_mean,       # 13 features
-            delta_std,        # 13 features
-            delta_delta_mean, # 13 features
-            delta_delta_std   # 13 features
-        ])  # Total: 78 features
+            mfcc_mean,        # 52 features
+            mfcc_std,         # 52 features
+            delta_mean,       # 52 features
+            delta_std,        # 52 features
+            delta_delta_mean, # 52 features
+            delta_delta_std   # 52 features
+        ])  # Total: 312 features
         
         logger.debug(f"Extracted {len(features)} features")
-        return features.reshape(1, -1)  # Shape: (1, 78)
+        return features.reshape(1, -1)  # Shape: (1, 312)
         
     except Exception as e:
         logger.error(f"❌ Feature extraction failed: {e}")
@@ -948,8 +948,8 @@ if start < len(audio_data):
 | **Window Size** | 1.0 second | 22,050 samples |
 | **Hop Size** | 0.5 seconds | 50% overlap |
 | **Number of Windows** | 119 | From 60s recording |
-| **Features per Window** | 78 | 13 MFCC × 3 × 2 (mean+std) |
-| **Feature Matrix** | (119, 78) | All windows |
+| **Features per Window** | 312 | 52 MFCC × 3 × 2 (mean+std) |
+| **Feature Matrix** | (119, 312) | All windows |
 | **Model Type** | SVM (RBF kernel) | With probability |
 | **Aggregation** | max_proba | Conservative |
 | **Confidence Threshold** | 0.6 (60%) | Minimum for classification |
