@@ -1,352 +1,701 @@
-# Smart Hive AI
+# Smart Hive AI# Smart Hive AI
+
+**IoT Beehive Monitoring System with Audio ML**
 
 A professional, production-ready IoT system for real-time beehive monitoring and AI-powered queen bee detection using Raspberry Pi edge computing.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://docs.docker.com/compose/)[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+[![Raspberry Pi](https://img.shields.io/badge/platform-Raspberry%20Pi%204-red.svg)](https://www.raspberrypi.org/)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](https://docs.docker.com/compose/)
-[![Tests](https://img.shields.io/badge/tests-20_passing-green.svg)]()
 
-## 📋 Overview
+---[![Tests](https://img.shields.io/badge/tests-20_passing-green.svg)]()
 
-Smart Hive AI is an intelligent beehive monitoring system that leverages edge computing and artificial intelligence to provide beekeepers with real-time insights into hive health and queen bee presence. The system combines multi-sensor data collection with cloud-based AWS services for a comprehensive monitoring solution.
 
-### ✨ Key Features
 
-- **🔴 Real-Time Multi-Sensor Monitoring**
-  - Temperature and humidity (BME280 sensor)
-  - Vibration detection (LIS3DH accelerometer)
-  - Sound analysis (INMP441 microphone)
+## 📋 Overview## 📋 Overview
+
+
+
+Smart Hive AI is a Raspberry Pi-based beehive monitoring system that combines **real-time sensors**, **audio machine learning**, and **cloud data storage** to help beekeepers monitor hive health.Smart Hive AI is an intelligent beehive monitoring system that leverages edge computing and artificial intelligence to provide beekeepers with real-time insights into hive health and queen bee presence. The system combines multi-sensor data collection with cloud-based AWS services for a comprehensive monitoring solution.
+
+
+
+### ✨ Current Features### ✨ Key Features
+
+
+
+- **🌡️ Environmental Monitoring**- **🔴 Real-Time Multi-Sensor Monitoring**
+
+  - Temperature & humidity (BME280 sensor)  - Temperature and humidity (BME280 sensor)
+
+  - Vibration detection (LIS3DH accelerometer)  - Vibration detection (LIS3DH accelerometer)
+
+  - Sound level measurement (INMP441 microphone)  - Sound analysis (INMP441 microphone)
+
   - Live video streaming with detection overlays
 
-- **🤖 AI-Powered Queen Bee Detection**
-  - YOLO v8-based computer vision model for queen detection
-  - Audio classification for hive activity analysis
-  - Real-time inference on edge device
+- **🎙️ Audio ML - Queen Bee Detection**
+
+  - **Random Forest classifier** for audio analysis- **🤖 AI-Powered Queen Bee Detection**
+
+  - Detects queen bee presence from hive sounds  - YOLO v8-based computer vision model for queen detection
+
+  - Confidence-based classification (60% threshold)  - Audio classification for hive activity analysis
+
+  - Real-time inference every 60 seconds  - Real-time inference on edge device
+
   - TensorFlow Lite optimization for Raspberry Pi
 
-- **☁️ AWS Cloud Integration**
-  - MQTT messaging via AWS IoT Core
-  - Real-time telemetry persistence in DynamoDB
+- **📹 Live Video Streaming**
+
+  - USB camera support- **☁️ AWS Cloud Integration**
+
+  - Real-time video feed in dashboard  - MQTT messaging via AWS IoT Core
+
+  - No AI vision detection (camera for monitoring only)  - Real-time telemetry persistence in DynamoDB
+
   - S3 integration for image storage (optional)
-  - Secure certificate-based authentication
 
-- **📊 Interactive Web Dashboard**
-  - Real-time sensor visualization with gauges
+- **☁️ AWS Cloud Integration**  - Secure certificate-based authentication
+
+  - **MQTT** messaging via local broker
+
+  - **DynamoDB** for historical data storage- **📊 Interactive Web Dashboard**
+
+  - **AWS IoT Core** ready (optional)  - Real-time sensor visualization with gauges
+
   - Live video stream with AI detection indicators
-  - WebSocket-based updates for instant data refresh
-  - Responsive design for mobile and desktop
-  - Sensor control and monitoring interface
 
-- **🐳 Docker Containerization**
-  - Three-service architecture (edge, ML, dashboard)
+- **📊 Interactive Web Dashboard**  - WebSocket-based updates for instant data refresh
+
+  - Real-time sensor gauges  - Responsive design for mobile and desktop
+
+  - Live video stream  - Sensor control and monitoring interface
+
+  - Audio ML status with confidence levels
+
+  - Waveform visualization during recording- **🐳 Docker Containerization**
+
+  - Sensor control (toggle ON/OFF)  - Three-service architecture (edge, ML, dashboard)
+
   - Resource-optimized for Raspberry Pi
-  - Easy deployment and scaling
-  - Environment isolation
 
-- **🧪 Comprehensive Testing**
+- **🐳 Docker Deployment**  - Easy deployment and scaling
+
+  - 4 containerized services  - Environment isolation
+
+  - Easy deployment via docker-compose
+
+  - Optimized for Raspberry Pi 4- **🧪 Comprehensive Testing**
+
   - 20+ unit tests for core functionality
-  - ML model path validation
+
+---  - ML model path validation
+
   - Configuration validation
-  - Sensor mock functionality
+
+## 🚀 Quick Start  - Sensor mock functionality
+
   - MQTT integration tests
 
-## 🏗️ Architecture
+### Prerequisites
 
-The Smart Hive AI system follows a microservices architecture with three independent containerized services:
+- Raspberry Pi 4 (4GB+ RAM)## 🏗️ Architecture
+
+- Sensors: BME280, LIS3DH, INMP441, USB camera
+
+- Docker & Docker Compose installedThe Smart Hive AI system follows a microservices architecture with three independent containerized services:
+
+- SD card (32GB+)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
+
+### Installation┌──────────────────────────────────────────────────────────────────┐
+
 │                     RASPBERRY PI EDGE DEVICE                      │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │   BME280        │  │   LIS3DH        │  │   INMP441       │ │
+
+```bash├──────────────────────────────────────────────────────────────────┤
+
+# Clone repository│                                                                    │
+
+git clone https://github.com/harmandeeppal/smart-hive-ai.git│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+
+cd smart-hive-ai│  │   BME280        │  │   LIS3DH        │  │   INMP441       │ │
+
 │  │ Temp/Humidity   │  │   Vibration     │  │     Sound       │ │
-│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
-│           │                    │                    │           │
+
+# Checkout stable branch│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
+
+git checkout feature/usb-camera-fix│           │                    │                    │           │
+
 │           └────────────────────┼────────────────────┘           │
-│                                │                                 │
-│  ┌──────────────────────────────▼──────────────────────────────┐ │
-│  │              DOCKER: smart-hive-edge                         │ │
+
+# Configure environment│                                │                                 │
+
+cp .env.example .env│  ┌──────────────────────────────▼──────────────────────────────┐ │
+
+nano .env  # Add AWS credentials│  │              DOCKER: smart-hive-edge                         │ │
+
 │  │  ┌────────────────────────────────────────────────────────┐ │ │
-│  │  │ app.py - Edge Application                             │ │ │
-│  │  ├────────────────────────────────────────────────────────┤ │ │
-│  │  │ • Sensor data collection (60s intervals)              │ │ │
+
+# Build and start│  │  │ app.py - Edge Application                             │ │ │
+
+docker-compose build│  │  ├────────────────────────────────────────────────────────┤ │ │
+
+docker-compose up -d│  │  │ • Sensor data collection (60s intervals)              │ │ │
+
 │  │  │ • MQTT publishing to AWS IoT Core                     │ │ │
-│  │  │ • DynamoDB persistence                               │ │ │
-│  │  │ • Flask video streaming server (port 5001)           │ │ │
-│  │  │ • Real-time telemetry loop                           │ │ │
+
+# Access dashboard│  │  │ • DynamoDB persistence                               │ │ │
+
+# Open browser: http://<raspberry-pi-ip>:5000│  │  │ • Flask video streaming server (port 5001)           │ │ │
+
+```│  │  │ • Real-time telemetry loop                           │ │ │
+
 │  │  └────────────────────────────────────────────────────────┘ │ │
-│  └──────────────┬───────────────────────────────────────┬────────┘ │
-│                 │                                       │          │
-│  ┌──────────────▼───────────────────────────────────────▼────────┐ │
-│  │         DOCKER: smart-hive-ml (ML Microservice)               │ │
+
+### Verify Installation│  └──────────────┬───────────────────────────────────────┬────────┘ │
+
+```bash│                 │                                       │          │
+
+# Check containers│  ┌──────────────▼───────────────────────────────────────▼────────┐ │
+
+docker ps│  │         DOCKER: smart-hive-ml (ML Microservice)               │ │
+
 │  │  ┌────────────────────────────────────────────────────────┐  │ │
-│  │  │ ml_inference_service.py - ML Processing               │  │ │
-│  │  ├────────────────────────────────────────────────────────┤  │ │
+
+# View logs│  │  │ ml_inference_service.py - ML Processing               │  │ │
+
+docker logs -f smart-hive-edge│  │  ├────────────────────────────────────────────────────────┤  │ │
+
 │  │  │ • YOLO v8 vision inference                            │  │ │
-│  │  │ • Audio classification                                │  │ │
-│  │  │ • Real-time detection results                         │  │ │
-│  │  │ • Resource-isolated from edge app                     │  │ │
+
+# Monitor MQTT│  │  │ • Audio classification                                │  │ │
+
+mosquitto_sub -h localhost -t 'hive/#' -v│  │  │ • Real-time detection results                         │  │ │
+
+```│  │  │ • Resource-isolated from edge app                     │  │ │
+
 │  │  │ • MQTT control & results topics                       │  │ │
-│  │  └────────────────────────────────────────────────────────┘  │ │
+
+---│  │  └────────────────────────────────────────────────────────┘  │ │
+
 │  └──────────────┬───────────────────────────────────────┬────────┘ │
-│                 │                                       │          │
+
+## 📖 Documentation│                 │                                       │          │
+
 │  ┌──────────────▼───────────────────────────────────────▼────────┐ │
-│  │       DOCKER: smart-hive-dashboard (Web Dashboard)            │ │
-│  │  ┌────────────────────────────────────────────────────────┐  │ │
-│  │  │ dashboard_app.py - Web Interface                       │  │ │
-│  │  ├────────────────────────────────────────────────────────┤  │ │
-│  │  │ • Flask web server (port 5000)                        │  │ │
-│  │  │ • Real-time data visualization                        │  │ │
-│  │  │ • Live video stream display                           │  │ │
+
+| Guide | Description |│  │       DOCKER: smart-hive-dashboard (Web Dashboard)            │ │
+
+|-------|-------------|│  │  ┌────────────────────────────────────────────────────────┐  │ │
+
+| **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** | **START HERE** - Complete documentation index |│  │  │ dashboard_app.py - Web Interface                       │  │ │
+
+| [BUILD_CONTAINERS_GUIDE.md](BUILD_CONTAINERS_GUIDE.md) | Detailed setup & deployment |│  │  ├────────────────────────────────────────────────────────┤  │ │
+
+| [QUICK_START.md](QUICK_START.md) | Quick commands & monitoring |│  │  │ • Flask web server (port 5000)                        │  │ │
+
+| [AUDIO_PROCESS_DETAILED_EXPLANATION.md](AUDIO_PROCESS_DETAILED_EXPLANATION.md) | How audio ML works (800+ lines) |│  │  │ • Real-time data visualization                        │  │ │
+
+| [USB_CAMERA_TROUBLESHOOTING.md](USB_CAMERA_TROUBLESHOOTING.md) | Camera setup & fixes |│  │  │ • Live video stream display                           │  │ │
+
 │  │  │ • WebSocket-based updates                             │  │ │
-│  │  │ • MQTT telemetry subscription                         │  │ │
+
+**→ See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for complete guide list**│  │  │ • MQTT telemetry subscription                         │  │ │
+
 │  │  └────────────────────────────────────────────────────────┘  │ │
-│  └──────────────┬───────────────────────────────────────┬────────┘ │
+
+---│  └──────────────┬───────────────────────────────────────┬────────┘ │
+
 │                 │                                       │          │
-└─────────────────┼───────────────────────────────────────┼──────────┘
+
+## 🏗️ System Architecture└─────────────────┼───────────────────────────────────────┼──────────┘
+
                   │              MQTT               │
-                  │          (AWS IoT Core)         │
-      ┌───────────▼─────────────────────────────────▼────────────┐
-      │                    AWS CLOUD SERVICES                     │
-      ├────────────────────────────────────────────────────────────┤
-      │ ┌─────────────────┐  ┌──────────────┐  ┌──────────────┐  │
-      │ │   IoT Core      │  │  DynamoDB    │  │      S3      │  │
-      │ │  MQTT Broker    │  │   Database   │  │   Storage    │  │
-      │ └─────────────────┘  └──────────────┘  └──────────────┘  │
-      └────────────────────────────────────────────────────────────┘
-```
 
-## 🛠️ System Components
+```                  │          (AWS IoT Core)         │
 
-### 1. Edge Application (`app.py`)
-- Sensor data collection and processing
+┌─────────────────────────────────────────────────────┐      ┌───────────▼─────────────────────────────────▼────────────┐
+
+│              Web Dashboard (Port 5000)              │      │                    AWS CLOUD SERVICES                     │
+
+│         Flask + SocketIO + Real-time UI             │      ├────────────────────────────────────────────────────────────┤
+
+└────────────┬────────────────────────────────────────┘      │ ┌─────────────────┐  ┌──────────────┐  ┌──────────────┐  │
+
+             │      │ │   IoT Core      │  │  DynamoDB    │  │      S3      │  │
+
+    ┌────────┴────────┬──────────────┬─────────────┐      │ │  MQTT Broker    │  │   Database   │  │   Storage    │  │
+
+    │                 │              │             │      │ └─────────────────┘  └──────────────┘  └──────────────┘  │
+
+┌───▼────┐   ┌────────▼──┐   ┌───────▼──┐   ┌─────▼──────┐      └────────────────────────────────────────────────────────────┘
+
+│ MQTT   │   │ Edge App  │   │ Audio ML │   │  DynamoDB  │```
+
+│ Broker │◄──┤  Sensors  │   │ Service  │   │  (Cloud)   │
+
+│        │   │  Camera   │   │ (Queen   │   │            │## 🛠️ System Components
+
+│        │   │  (5001)   │   │Detection)│   │            │
+
+└────────┘   └───────────┘   └──────────┘   └────────────┘### 1. Edge Application (`app.py`)
+
+```- Sensor data collection and processing
+
 - MQTT publishing to AWS IoT Core
-- DynamoDB data persistence
-- Video streaming server
-- Mock/real sensor abstraction layer
-- Telemetry loop (60-second intervals)
+
+### Container Stack:- DynamoDB data persistence
+
+1. **mosquitto** - MQTT message broker (local)- Video streaming server
+
+2. **smart-hive-edge** - Main app (sensors + camera streaming)- Mock/real sensor abstraction layer
+
+3. **smart-hive-audio** - Audio ML inference service- Telemetry loop (60-second intervals)
+
+4. **smart-hive-dashboard** - Web interface
 
 ### 2. ML Inference Microservice (`ml_inference_service.py`)
-- Independent ML processing service
+
+---- Independent ML processing service
+
 - YOLO v8 vision model for queen bee detection
-- Audio classification for hive activity
+
+## 🔧 Configuration- Audio classification for hive activity
+
 - MQTT-based control and results
-- Resource-isolated for Raspberry Pi constraints
 
-### 3. Web Dashboard (`dashboard/dashboard_app.py`)
-- Real-time data visualization
-- Live video streaming
-- Interactive sensor controls
-- WebSocket communication
-- Responsive web interface
+### Key Settings (`config.py`):- Resource-isolated for Raspberry Pi constraints
 
-### 4. Configuration Management (`config.py`)
-- Centralized environment-based configuration
-- AWS IoT Core settings
-- MQTT topics and intervals
-- Feature flags and toggles
+
+
+**Audio ML:**### 3. Web Dashboard (`dashboard/dashboard_app.py`)
+
+```python- Real-time data visualization
+
+AUDIO_CONFIDENCE_THRESHOLD = 0.6  # 60% confidence- Live video streaming
+
+AUDIO_WINDOW_SECONDS = 1.0        # 1-second windows- Interactive sensor controls
+
+AUDIO_HOP_SECONDS = 0.5           # 50% overlap- WebSocket communication
+
+```- Responsive web interface
+
+
+
+**Camera:**### 4. Configuration Management (`config.py`)
+
+```python- Centralized environment-based configuration
+
+CAMERA_TYPE = "USB"          # USB webcam- AWS IoT Core settings
+
+CAMERA_DEVICE_INDEX = 0      # First camera (/dev/video0)- MQTT topics and intervals
+
+VIDEO_STREAM_FPS = 20        # 20 FPS streaming- Feature flags and toggles
+
+```
 
 ## 📦 Hardware Requirements
 
-### Raspberry Pi Setup
-- **Device**: Raspberry Pi 4 (2GB RAM minimum, 4GB+ recommended)
-- **Storage**: MicroSD Card (16GB minimum, Class 10 recommended)
+**Telemetry:**
+
+```python### Raspberry Pi Setup
+
+TELEMETRY_PUBLISH_INTERVAL = 60  # Publish every 60 seconds- **Device**: Raspberry Pi 4 (2GB RAM minimum, 4GB+ recommended)
+
+```- **Storage**: MicroSD Card (16GB minimum, Class 10 recommended)
+
 - **Power**: 5V 3A USB-C Power Supply
 
+See [`config.py`](config.py) for all settings.
+
 ### Sensors
-| Sensor | Model | Function | Connection |
+
+---| Sensor | Model | Function | Connection |
+
 |--------|-------|----------|-----------|
-| Temperature/Humidity | BME280 | Environmental monitoring | I2C (0x76) |
+
+## 📊 Features Status| Temperature/Humidity | BME280 | Environmental monitoring | I2C (0x76) |
+
 | Vibration | LIS3DH | Hive activity detection | I2C (0x19) |
-| Microphone | INMP441 | Sound analysis | I2S |
-| Camera | Logitech C270 | Live video & detection | USB |
 
-### Connections
-- **I2C Bus 1** (GPIO 2/3): BME280 + LIS3DH sensors
-- **USB Ports**: Camera and microphone
-- **Network**: Ethernet or WiFi (required for AWS)
+| Feature | Status | Technology || Microphone | INMP441 | Sound analysis | I2S |
 
-## 💻 Software Stack
+|---------|--------|------------|| Camera | Logitech C270 | Live video & detection | USB |
 
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| Python | 3.9+ | Runtime |
+| Temperature monitoring | ✅ Working | BME280 I2C sensor |
+
+| Humidity monitoring | ✅ Working | BME280 I2C sensor |### Connections
+
+| Vibration monitoring | ✅ Working | LIS3DH I2C accelerometer |- **I2C Bus 1** (GPIO 2/3): BME280 + LIS3DH sensors
+
+| Sound level | ✅ Working | INMP441 microphone |- **USB Ports**: Camera and microphone
+
+| **Audio ML (Queen Detection)** | ✅ **Working** | Random Forest + librosa |- **Network**: Ethernet or WiFi (required for AWS)
+
+| Live video streaming | ✅ Working | USB camera (OpenCV) |
+
+| Web dashboard | ✅ Working | Flask + SocketIO |## 💻 Software Stack
+
+| AWS DynamoDB | ✅ Working | Cloud data storage |
+
+| MQTT messaging | ✅ Working | Local mosquitto broker || Component | Version | Purpose |
+
+| ~~Vision ML~~ | ❌ Not used | Camera for streaming only ||-----------|---------|---------|
+
+| ~~S3 Uploads~~ | ❌ Not used | Feature disabled || Python | 3.9+ | Runtime |
+
 | Docker | Latest | Containerization |
-| Flask | 2.x | Web framework |
+
+---| Flask | 2.x | Web framework |
+
 | MQTT (Paho) | 1.6+ | Message broker |
-| OpenCV | 4.x | Computer vision |
+
+## 🎯 Current Capabilities| OpenCV | 4.x | Computer vision |
+
 | TensorFlow Lite | 2.x | ML inference |
-| Boto3 | 1.26+ | AWS SDK |
-| PyTorch | 2.x | Deep learning |
-| scikit-learn | Latest | ML algorithms |
 
-## 🚀 Quick Start
+### Audio ML System| Boto3 | 1.26+ | AWS SDK |
 
-### For Laptop Development (5 minutes)
+- **Records:** 60 seconds of hive audio via INMP441 microphone| PyTorch | 2.x | Deep learning |
 
-```bash
-# 1. Clone repository
-git clone https://github.com/harmandeeppal/smart-hive-ai.git
-cd smart-hive-ai
+- **Analyzes:** Extracts 312 audio features (13 MFCC × 3 types × 8 statistics)| scikit-learn | Latest | ML algorithms |
 
-# 2. Create virtual environment
+- **Classifies:** Random Forest model predicts `queen_present` or `queen_absent`
+
+- **Confidence:** Only accepts predictions ≥60% confidence## 🚀 Quick Start
+
+- **Publishes:** Results to MQTT topic `hive/audio/classification`
+
+- **Dashboard:** Shows classification, confidence, and waveform visualization### For Laptop Development (5 minutes)
+
+
+
+### Sensor Monitoring```bash
+
+- **Sampling:** Every 60 seconds# 1. Clone repository
+
+- **Sensors:** Temperature, humidity, vibration, sound levelgit clone https://github.com/harmandeeppal/smart-hive-ai.git
+
+- **Storage:** DynamoDB with NZ timezone timestampscd smart-hive-ai
+
+- **Dashboard:** Real-time gauges with color-coded status
+
+- **Controls:** Toggle individual sensors ON/OFF# 2. Create virtual environment
+
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. Install dependencies
-pip install -r requirements.txt
+### Video Streamingsource venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 4. Run tests (verify setup)
+- **Source:** Any USB webcam
+
+- **Resolution:** 640×480 (configurable)# 3. Install dependencies
+
+- **Frame Rate:** 20 FPS (configurable)pip install -r requirements.txt
+
+- **Access:** `http://<pi-ip>:5001/video_feed` (direct) or via dashboard
+
+- **Note:** No AI vision detection (streaming only)# 4. Run tests (verify setup)
+
 pytest tests/ -v
+
+---
 
 # 5. Start services in mock mode (3 terminal windows)
 
+## 🐛 Troubleshooting
+
 # Terminal 1: Edge application
-export IS_MOCK_ENVIRONMENT=true
+
+### Common Issues:export IS_MOCK_ENVIRONMENT=true
+
 python app.py
 
-# Terminal 2: ML inference service
-python ml_inference_service.py
+**Audio ML not working?**
+
+```bash# Terminal 2: ML inference service
+
+# Check microphonepython ml_inference_service.py
+
+arecord -l
 
 # Terminal 3: Dashboard
-cd dashboard
-python dashboard_app.py
 
-# 6. Open browser
-# http://localhost:5000
+# Check audio service logscd dashboard
+
+docker logs smart-hive-audio | grep -i classificationpython dashboard_app.py
+
+
+
+# See: AUDIO_TROUBLESHOOTING.md# 6. Open browser
+
+```# http://localhost:5000
+
 ```
 
-### For Raspberry Pi Deployment (10 minutes)
+**Camera showing broken image?**
 
-```bash
+```bash### For Raspberry Pi Deployment (10 minutes)
+
+# Check camera device
+
+ls -l /dev/video0```bash
+
 # 1. Setup credentials
-cp .env.example .env
-nano .env  # Add your AWS IoT endpoint
 
-# 2. Copy AWS certificates
-cp your-certificate.pem certs/
+# Test video feedcp .env.example .env
+
+curl -I http://localhost:5001/video_feednano .env  # Add your AWS IoT endpoint
+
+
+
+# See: CRITICAL_FIX_BROKEN_IMAGE.md# 2. Copy AWS certificates
+
+```cp your-certificate.pem certs/
+
 cp your-private-key.pem certs/
-cp AmazonRootCA1.pem certs/
 
-# 3. Deploy with Docker
-docker-compose build
-docker-compose up -d
-
-# 4. Monitor
-docker-compose logs -f
-
-# 5. Access dashboard
-# http://<raspberry-pi-ip>:5000
-```
-
-## ⚙️ Configuration
-
-### Environment Variables (.env)
+**Dashboard not updating?**cp AmazonRootCA1.pem certs/
 
 ```bash
-# AWS IoT Core
-AWS_ENDPOINT=your-endpoint.iot.ap-southeast-2.amazonaws.com
-CERT_FILE_NAME=your-certificate.pem
-KEY_FILE_NAME=your-private-key.pem
 
-# Flask
-SECRET_KEY=your-secret-key-here
+# Rebuild dashboard (files are copied into container!)# 3. Deploy with Docker
 
-# AWS Services
-S3_BUCKET_NAME=your-bucket-name
-ENABLE_S3=false  # Set to true for image uploads
+docker-compose build --no-cache dashboarddocker-compose build
 
-# Development
-IS_MOCK_ENVIRONMENT=false  # Set to true for laptop testing
-```
+docker-compose up -d dashboarddocker-compose up -d
 
-### Hardware Configuration (`config.py`)
 
-```python
+
+# Hard refresh browser: Ctrl + Shift + R# 4. Monitor
+
+```docker-compose logs -f
+
+
+
+**→ See [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) for complete troubleshooting guides**# 5. Access dashboard
+
+# http://<raspberry-pi-ip>:5000
+
+---```
+
+
+
+## 📦 Project Structure## ⚙️ Configuration
+
+
+
+```### Environment Variables (.env)
+
+smart-hive-ai/
+
+├── app.py                       # Main edge application```bash
+
+├── config.py                    # Configuration settings# AWS IoT Core
+
+├── ml_audio_service.py          # Audio ML microserviceAWS_ENDPOINT=your-endpoint.iot.ap-southeast-2.amazonaws.com
+
+├── dashboard/                   # Web dashboardCERT_FILE_NAME=your-certificate.pem
+
+│   ├── dashboard_app.py         # Flask backendKEY_FILE_NAME=your-private-key.pem
+
+│   ├── templates/index.html     # Dashboard UI
+
+│   └── static/                  # CSS, JavaScript# Flask
+
+├── ml_audio_model/              # Audio processingSECRET_KEY=your-secret-key-here
+
+│   └── audio_processor.py       # Feature extraction + inference
+
+├── models/                      # ML models# AWS Services
+
+│   └── audio_model_pipeline.pkl # Trained Random ForestS3_BUCKET_NAME=your-bucket-name
+
+├── real_components.py           # Raspberry Pi hardwareENABLE_S3=false  # Set to true for image uploads
+
+├── docker-compose.yml           # Container orchestration
+
+├── Dockerfile.*                 # Container definitions# Development
+
+└── *.md                        # DocumentationIS_MOCK_ENVIRONMENT=false  # Set to true for laptop testing
+
+``````
+
+
+
+---### Hardware Configuration (`config.py`)
+
+
+
+## 🔄 Updates & Maintenance```python
+
 # I2C Addresses
-BME280_ADDRESS = 0x76
-LIS3DH_ADDRESS = 0x19
 
-# Camera Settings
-CAMERA_TYPE = "USB"
-CAMERA_DEVICE_INDEX = 0
+### Deploy Updates:BME280_ADDRESS = 0x76
+
+```bashLIS3DH_ADDRESS = 0x19
+
+cd ~/smart-hive-ai
+
+git pull origin feature/usb-camera-fix# Camera Settings
+
+docker-compose build --no-cacheCAMERA_TYPE = "USB"
+
+docker-compose up -dCAMERA_DEVICE_INDEX = 0
+
+```
 
 # Sensor Intervals (seconds)
-TELEMETRY_INTERVAL_SECONDS = 60
 
-# AI Detection
-VISION_DETECTION_MODE = "continuous"
+### Monitor System:TELEMETRY_INTERVAL_SECONDS = 60
+
+```bash
+
+# All containers running?# AI Detection
+
+docker psVISION_DETECTION_MODE = "continuous"
+
 VISION_PROCESS_EVERY_N_FRAMES = 3
-VISION_CONFIDENCE_THRESHOLD = 0.5
 
-# AWS Services
-DYNAMODB_TABLE = "SmartHiveTelemetry"
+# Check logsVISION_CONFIDENCE_THRESHOLD = 0.5
+
+docker logs -f smart-hive-edge
+
+docker logs -f smart-hive-audio# AWS Services
+
+docker logs -f smart-hive-dashboardDYNAMODB_TABLE = "SmartHiveTelemetry"
+
 AWS_REGION = "ap-southeast-2"
 
-# MQTT Topics
-TOPIC_TELEMETRY = "hive/telemetry"
+# Monitor MQTT messages
+
+mosquitto_sub -h localhost -t 'hive/#' -v# MQTT Topics
+
+```TOPIC_TELEMETRY = "hive/telemetry"
+
 TOPIC_VISION = "hive/vision"
-TOPIC_CONTROL = "hive/control"
+
+---TOPIC_CONTROL = "hive/control"
+
 ```
+
+## 🛠️ Technology Stack
 
 ## 📁 Project Structure
 
-```
-smart-hive-ai/
-├── README.md                           # This file
-├── QUICK_START.md                      # Quick reference guide
-├── DOCUMENTATION_CLEANUP_SUMMARY.md    # Documentation overview
-│
-├── Core Application Files
+- **Hardware:** Raspberry Pi 4, BME280, LIS3DH, INMP441, USB camera
+
+- **Languages:** Python 3.9+```
+
+- **ML Libraries:** scikit-learn, librosa, numpysmart-hive-ai/
+
+- **Web:** Flask, SocketIO, JavaScript├── README.md                           # This file
+
+- **Containers:** Docker, Docker Compose├── QUICK_START.md                      # Quick reference guide
+
+- **Cloud:** AWS DynamoDB, AWS IoT Core (optional)├── DOCUMENTATION_CLEANUP_SUMMARY.md    # Documentation overview
+
+- **Messaging:** MQTT (Mosquitto broker)│
+
+- **Camera:** OpenCV (cv2)├── Core Application Files
+
 ├── app.py                              # Main edge application (726 lines)
-├── config.py                           # Configuration management (244 lines)
+
+---├── config.py                           # Configuration management (244 lines)
+
 ├── ml_inference_service.py             # ML microservice (631 lines)
-│
+
+## 📝 Recent Improvements (October 2025)│
+
 ├── Component Abstractions
-├── mock_components.py                  # Mock sensors for testing
-├── real_components.py                  # Real hardware implementations
-│
-├── Dashboard Application
-├── dashboard/
-│   ├── dashboard_app.py               # Dashboard web app (267 lines)
+
+✅ **Audio ML Fully Operational:**├── mock_components.py                  # Mock sensors for testing
+
+- Fixed sample rate auto-detection (44100Hz → 22050Hz)├── real_components.py                  # Real hardware implementations
+
+- Corrected feature extraction (13 MFCC × 8 stats = 312 features)│
+
+- Fixed pipeline order (scale → select)├── Dashboard Application
+
+- Added confidence threshold configuration├── dashboard/
+
+- Enhanced dashboard visualizations│   ├── dashboard_app.py               # Dashboard web app (267 lines)
+
 │   ├── static/
-│   │   ├── app.js                     # Frontend logic
-│   │   └── styles.css                 # Dashboard styling
-│   └── templates/
-│       └── index.html                 # Dashboard UI
-│
+
+✅ **Camera System Fixed:**│   │   ├── app.js                     # Frontend logic
+
+- Multi-backend initialization (V4L2, auto-detect)│   │   └── styles.css                 # Dashboard styling
+
+- Automatic warmup and retry logic│   └── templates/
+
+- Fixed dashboard hostname mismatch (edge-app → smart-hive-edge)│       └── index.html                 # Dashboard UI
+
+- Comprehensive troubleshooting documentation│
+
 ├── ML Models & Processors
-├── ml_vision_model/
-│   └── vision_processor.py            # YOLO v8 processor
-├── ml_audio_model/
-│   └── audio_processor.py             # Audio classifier
+
+✅ **Documentation Cleanup:**├── ml_vision_model/
+
+- Removed obsolete/redundant files│   └── vision_processor.py            # YOLO v8 processor
+
+- Created consolidated guides├── ml_audio_model/
+
+- Up-to-date architecture diagrams│   └── audio_processor.py             # Audio classifier
+
 ├── models/                            # AI models directory
-│   ├── vision_model.pt                # YOLO v8 model (6.23 MB)
+
+---│   ├── vision_model.pt                # YOLO v8 model (6.23 MB)
+
 │   ├── audio_model.pkl                # Audio classifier (15.8 MB)
-│   └── queen_bee.tflite               # TensorFlow Lite model
+
+## 📄 License│   └── queen_bee.tflite               # TensorFlow Lite model
+
 │
-├── Docker Configuration
+
+MIT License - See [LICENSE](LICENSE) file for details├── Docker Configuration
+
 ├── docker-compose.yml                 # Multi-container orchestration
-├── Dockerfile.edge                    # Edge app container
+
+---├── Dockerfile.edge                    # Edge app container
+
 ├── Dockerfile.dashboard               # Dashboard container
-├── Dockerfile.ml                      # ML service container
+
+## 🤝 Contributing├── Dockerfile.ml                      # ML service container
+
 │
-├── Dependencies
+
+This is an academic project. For issues or questions, please open a GitHub issue.├── Dependencies
+
 ├── requirements.txt                   # All dependencies
-├── requirements-edge.txt              # Edge-specific
+
+---├── requirements-edge.txt              # Edge-specific
+
 ├── requirements-dashboard.txt         # Dashboard-specific
-├── requirements-ml.txt                # ML-specific
+
+## 📞 Support├── requirements-ml.txt                # ML-specific
+
 │
-├── AWS IoT Certificates
-├── certs/
+
+**Documentation:** [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)  ├── AWS IoT Certificates
+
+**Repository:** https://github.com/harmandeeppal/smart-hive-ai├── certs/
+
 │   ├── AmazonRootCA1.pem             # AWS root CA
-│   ├── your-certificate.pem          # Device certificate
+
+---│   ├── your-certificate.pem          # Device certificate
+
 │   └── your-private-key.pem          # Private key
-│
-├── Documentation
+
+**Last Updated:** October 20, 2025  │
+
+**Current Stable Branch:** `feature/usb-camera-fix`├── Documentation
+
 ├── docs/
 │   ├── SETUP_AND_DEPLOYMENT.md       # Setup guide (⭐ START HERE)
 │   ├── DEPLOYMENT.md                 # Production deployment
