@@ -155,7 +155,7 @@ def video_feed():
     """
     Proxy video stream from edge application container.
     
-    Forwards the MJPEG video stream from the edge-app container running
+    Forwards the MJPEG video stream from the smart-hive-edge container running
     on port 5001 to dashboard clients. Handles connection errors gracefully.
     
     Returns:
@@ -163,7 +163,8 @@ def video_feed():
     """
     try:
         # URL of the video stream from edge application container
-        video_url = "http://edge-app:5001/video_feed"
+        # Container name is 'smart-hive-edge' (from docker-compose.yml)
+        video_url = "http://smart-hive-edge:5001/video_feed"
         
         # Stream video with chunked transfer encoding
         resp = requests.get(video_url, stream=True, timeout=10)
@@ -175,10 +176,10 @@ def video_feed():
                             status=resp.status_code)
         else:
             # Handle non-200 status codes
-            error_message = f"Error fetching stream from edge-app: Status {resp.status_code}"
+            error_message = f"Error fetching stream from smart-hive-edge: Status {resp.status_code}"
             return Response(error_message, mimetype='text/plain')
     except requests.exceptions.RequestException as e:
-        # Handle connection errors (edge-app not running, network issues)
+        # Handle connection errors (smart-hive-edge not running, network issues)
         error_message = f"Could not connect to video stream at {video_url}: {e}"
         return Response(error_message, mimetype='text/plain')
 
