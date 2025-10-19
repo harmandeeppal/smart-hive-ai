@@ -1,11 +1,17 @@
 # Smart Hive AI - Troubleshooting Guide
 
+> **📚 For comprehensive troubleshooting guides, see:**
+> - [../USB_CAMERA_TROUBLESHOOTING.md](../USB_CAMERA_TROUBLESHOOTING.md) - Camera issues
+> - [../AUDIO_TROUBLESHOOTING.md](../AUDIO_TROUBLESHOOTING.md) - Audio ML issues
+> - [../DOCUMENTATION_INDEX.md](../DOCUMENTATION_INDEX.md) - Complete troubleshooting section
+
 ## Table of Contents
 - [Hardware Issues](#hardware-issues)
 - [Sensor Problems](#sensor-problems)
 - [AWS Connectivity](#aws-connectivity)
 - [Docker Issues](#docker-issues)
 - [Video Streaming](#video-streaming)
+- [Audio ML Issues](#audio-ml-issues)
 - [DynamoDB Data Flow](#dynamodb-data-flow)
 
 ## Hardware Issues

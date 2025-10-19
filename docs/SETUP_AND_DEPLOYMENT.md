@@ -1,16 +1,21 @@
 # Smart Hive AI - Complete Setup & Deployment Guide
 
+> **⚠️ NOTICE:** This document contains some outdated information. For the most up-to-date deployment guide, see:
+> - [DEPLOYMENT.md](DEPLOYMENT.md) - Current deployment guide
+> - [../DOCUMENTATION_INDEX.md](../DOCUMENTATION_INDEX.md) - Master index
+> - [../BUILD_CONTAINERS_GUIDE.md](../BUILD_CONTAINERS_GUIDE.md) - Docker deployment
+
 ## Project Overview
 
-Smart Hive AI is an IoT + Edge AI system for intelligent honeybee colony monitoring. It combines Raspberry Pi edge computing with cloud-based analytics to detect queen bee presence, monitor hive health, and provide real-time alerts.
+Smart Hive AI is an IoT + Edge AI system for intelligent honeybee colony monitoring. It combines Raspberry Pi edge computing with Audio ML classification to monitor hive health and provide real-time alerts.
 
 **Technology Stack:**
 - Python 3.9+
-- Edge: AWS IoT Core, MQTT
-- ML: YOLO v8 (Vision), scikit-learn (Audio)
+- Edge: MQTT (Local Mosquitto Broker)
+- ML: scikit-learn Random Forest (Audio Classification)
 - Dashboard: Flask + SocketIO
 - Containerization: Docker & Docker Compose
-- Database: AWS DynamoDB, S3
+- Database: AWS DynamoDB (Optional)
 
 ---
 
@@ -78,26 +83,31 @@ python ml_inference_service.py
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AWS Cloud                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐           │
-│  │ IoT Core     │  │ DynamoDB     │  │ S3 Bucket    │           │
-│  │ (MQTT Broker)│  │ (TimeSeries) │  │ (Images)     │           │
-│  └──────────────┘  └──────────────┘  └──────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-           ▲                 ▲                ▲
-           │                 │                │
-┌──────────┴──────────────────┴────────────────┴──────────────────┐
-│                     Raspberry Pi (Edge)                          │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Docker Compose                                         │   │
-│  │  ┌──────────────┐ ┌────────────────┐ ┌────────────────┐│   │
-│  │  │  Edge App    │ │ ML Inference   │ │   Dashboard   ││   │
-│  │  │  (Telemetry) │ │  (Vision+Audio)│ │   (Web UI)    ││   │
-│  │  └──────────────┘ └────────────────┘ └────────────────┘│   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                          ▲                                       │
-└──────────────────────────┼───────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│         AWS Cloud (Optional)                 │
+│  ┌──────────────┐                           │
+│  │ DynamoDB     │                           │
+│  │ (TimeSeries) │                           │
+│  └──────────────┘                           │
+└──────────────────────────────────────────────┘
+           ▲
+           │ (Optional)
+┌──────────┴──────────────────────────────────┐
+│         Raspberry Pi (Edge)                  │
+│  ┌────────────────────────────────────────┐ │
+│  │  Docker Compose                        │ │
+│  │  ┌──────────┐ ┌─────────┐ ┌──────────┐│ │
+│  │  │ Edge App │ │ Audio ML│ │Dashboard ││ │
+│  │  │(Sensors +│ │(RF Model│ │(Web UI + ││ │
+│  │  │ Camera)  │ │ Predict)│ │ Video)   ││ │
+│  │  └──────────┘ └─────────┘ └──────────┘│ │
+│  │       │            ▲            │      │ │
+│  │  ┌────┴────────────┴────────────┴───┐ │ │
+│  │  │  Mosquitto MQTT Broker (Local) │ │ │
+│  │  └────────────────────────────────┘ │ │
+│  └────────────────────────────────────────┘ │
+│                     ▲                        │
+└─────────────────────┼────────────────────────┘
                            │
                     ┌──────────────┐
                     │  Hive Sensors│
@@ -172,19 +182,19 @@ KEY_FILE_NAME=your_private.key
 # Flask
 SECRET_KEY=your-secret-key-here
 
-# S3 (optional)
-S3_BUCKET_NAME=your-bucket-name
-ENABLE_S3=false
+# DynamoDB (optional - cloud storage)
+ENABLE_DYNAMODB=false
 
-# MQTT
-MQTT_BROKER=localhost  # or your.endpoint.com
-MQTT_PORT=8883
+# MQTT (Local Mosquitto Broker)
+MQTT_BROKER=mosquitto  # Container name
+MQTT_PORT=1883
 
 # Feature Flags
 IS_MOCK_ENVIRONMENT=false
-ENABLE_VISION_AI=true
-ENABLE_AUDIO_AI=true
+ENABLE_AUDIO_ML=true
 ```
+
+**Note:** System uses local MQTT broker. AWS IoT Core is optional for remote access.
 
 ### config.py Settings
 
@@ -194,14 +204,19 @@ Key configuration parameters:
 # Sensor intervals (seconds)
 TELEMETRY_INTERVAL_SECONDS = 60  # Read sensors every 60s
 
-# Vision detection
-VISION_DETECTION_MODE = "continuous"
-VISION_PROCESS_EVERY_N_FRAMES = 3  # Every 3rd frame
-VISION_DETECTION_COOLDOWN_SECONDS = 3600  # 1 hour
+# Audio ML settings
+AUDIO_CONFIDENCE_THRESHOLD = 0.6  # 60% confidence minimum
+AUDIO_WINDOW_SECONDS = 1.0
+AUDIO_HOP_SECONDS = 0.5
+
+# Camera settings
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+CAMERA_FPS = 20
 
 # MQTT Topics
 TOPIC_TELEMETRY = "hive/telemetry"
-TOPIC_VISION = "hive/vision"
+TOPIC_AUDIO = "hive/audio"
 TOPIC_CONTROL = "hive/control"
 ```
 

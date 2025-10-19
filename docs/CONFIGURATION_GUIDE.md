@@ -13,29 +13,19 @@ All timing, thresholds, and hardware settings are now centralized in `config.py`
 # How often sensors publish data (in seconds)
 TELEMETRY_INTERVAL_SECONDS = 5  
 # Recommendation: 5-10 seconds for real-time monitoring
-# Lower = More data, higher AWS costs
+# Lower = More data, higher DynamoDB costs
 # Higher = Less responsive, lower costs
-
-# How often AI vision runs (in seconds)
-VISION_LOOP_INTERVAL_SECONDS = 1
-# Recommendation: 1-2 seconds
-# Note: Only publishes when queen detected
-
-# How often to upload general snapshots to S3 (in seconds)
-S3_SNAPSHOT_INTERVAL_SECONDS = 300  # 5 minutes
-# Recommendation: 300-600 seconds (5-10 minutes)
-# Lower = More storage costs
 ```
 
-### AWS Data Flow
+### Data Flow
 ```
-Edge Device → AWS IoT Core (MQTT) → Dashboard
+Edge Device → Local MQTT Broker → Dashboard
      ↓
-  AWS S3 (Images)
+  AWS DynamoDB (Optional)
 
 Telemetry: Every 5 seconds
-Vision Events: When queen detected (+ image upload)
-General Snapshots: Every 5 minutes
+Audio ML Events: When audio patterns detected
+Camera Stream: Continuous (no AI detection)
 ```
 
 ---
@@ -76,11 +66,34 @@ CAMERA_HEIGHT = 480
 
 ### Microphone Settings
 ```python
-# Samson USB Microphone
+# Samson USB Microphone (INMP441)
 MICROPHONE_SAMPLE_RATE = 44100  # Hz (CD quality)
 MICROPHONE_DURATION_MS = 100    # For dB sampling
 MICROPHONE_FREQ_DURATION_SEC = 1.0  # For frequency analysis
 ```
+
+### Audio ML Settings
+```python
+# Audio ML Classifier (Random Forest)
+AUDIO_CONFIDENCE_THRESHOLD = 0.6  # 60% confidence minimum
+# Recommendation: 0.5-0.7
+# Lower = More sensitive (more false positives)
+# Higher = More selective (may miss events)
+
+AUDIO_WINDOW_SECONDS = 1.0   # Analysis window duration
+AUDIO_HOP_SECONDS = 0.5      # Sliding window step
+# Recommendation: Keep defaults for balanced performance
+
+AUDIO_AGGREGATION_METHOD = 'max_proba'  # How to combine predictions
+# Options: 'max_proba', 'vote', 'average'
+# max_proba = Use highest confidence prediction
+```
+
+**Audio ML Model:**
+- Model file: `models/audio_model_pipeline.pkl`
+- Features: 312 (13 MFCC × 3 types × 8 statistics)
+- Classes: Normal, Swarming, Queenless, etc.
+- Training: scikit-learn RandomForestClassifier
 
 ---
 
@@ -172,8 +185,8 @@ IS_MOCK_ENVIRONMENT = True
 **What this does:**
 - Uses `mock_components.py` (no real sensors needed)
 - Generates random data within realistic ranges
-- Simulates queen detection (20% chance per frame)
-- Logs S3 uploads instead of actually uploading
+- Simulates audio ML predictions
+- No actual hardware required
 
 ### Real Environment (Raspberry Pi)
 ```python
@@ -184,8 +197,8 @@ IS_MOCK_ENVIRONMENT = False
 **What this does:**
 - Uses `real_components.py` (requires sensors)
 - Reads actual sensor data
-- Runs real AI inference
-- Actually uploads to S3
+- Runs real Audio ML inference
+- Streams live USB camera video
 
 ---
 
@@ -221,15 +234,20 @@ elements.sound.status.textContent = '💀 DISTRESS/MORTALITY ALERT';
 
 ---
 
-## 🔐 AWS CONFIGURATION
+## 🔐 AWS CONFIGURATION (Optional)
 
 ### Environment Variables (.env file)
 ```bash
 # Create .env file in project root:
+# AWS IoT Core (Optional)
 AWS_ENDPOINT=your-endpoint.iot.region.amazonaws.com
 CERT_FILE_NAME=your-certificate.pem.crt
 KEY_FILE_NAME=your-private.pem.key
-S3_BUCKET_NAME=smart-hive-snapshots-your-name
+
+# DynamoDB (Optional)
+ENABLE_DYNAMODB=false  # Set to true to enable cloud storage
+
+# Flask Secret
 SECRET_KEY=your-flask-secret-key
 ```
 
@@ -237,7 +255,7 @@ SECRET_KEY=your-flask-secret-key
 ```python
 # In config.py:
 TOPIC_TELEMETRY = "hive/telemetry"  # Sensor data
-TOPIC_VISION = "hive/vision"        # Queen detections
+TOPIC_AUDIO = "hive/audio"          # Audio ML predictions
 TOPIC_CONTROL = "hive/control"      # Toggle commands
 ```
 
@@ -245,42 +263,45 @@ TOPIC_CONTROL = "hive/control"      # Toggle commands
 ```python
 # For multiple hives:
 TOPIC_TELEMETRY = "hive/hive1/telemetry"
-TOPIC_TELEMETRY = "hive/hive2/telemetry"
+TOPIC_AUDIO = "hive/hive1/audio"
+# etc
 ```
+
+**Note:** System works with local MQTT broker (mosquitto). AWS IoT Core is optional for remote access.
 
 ---
 
 ## 📈 PERFORMANCE TUNING
 
-### Reduce AWS Costs
+### Reduce CPU Usage
 ```python
-# Lower frequency of updates:
+# Lower frequency of sensor updates:
 TELEMETRY_INTERVAL_SECONDS = 10  # Instead of 5
-S3_SNAPSHOT_INTERVAL_SECONDS = 600  # Instead of 300
 
-# Upload only high-confidence detections:
-# In app.py, line 238:
-if box is not None and confidence is not None and confidence > 0.90:
-    # Only upload if >90% confident
-```
-
-### Improve AI Performance
-```python
-# Increase vision loop interval (less CPU):
-VISION_LOOP_INTERVAL_SECONDS = 2  # Instead of 1
-
-# Lower camera resolution (faster processing):
+# Reduce camera resolution (less bandwidth):
 CAMERA_WIDTH = 320  # Instead of 640
 CAMERA_HEIGHT = 240  # Instead of 480
+CAMERA_FPS = 15     # Instead of 20
 ```
 
-### Better Frequency Analysis
+### Improve Audio ML Performance
 ```python
-# Higher resolution (slower but more accurate):
-MICROPHONE_FREQ_DURATION_SEC = 2.0  # Instead of 1.0
+# Increase confidence threshold (fewer false alarms):
+AUDIO_CONFIDENCE_THRESHOLD = 0.7  # Instead of 0.6
 
-# Higher sample rate (better quality):
+# Adjust analysis window (balance accuracy vs speed):
+AUDIO_WINDOW_SECONDS = 0.5  # Faster but less context
+# or
+AUDIO_WINDOW_SECONDS = 2.0  # Slower but more accurate
+```
+
+### Better Audio Quality
+```python
+# Higher sample rate (better quality, more CPU):
 MICROPHONE_SAMPLE_RATE = 48000  # Instead of 44100
+
+# Longer frequency analysis window:
+MICROPHONE_FREQ_DURATION_SEC = 2.0  # Instead of 1.0
 ```
 
 ---
@@ -294,12 +315,13 @@ To monitor multiple hives with one dashboard:
 # Hive 1 - config.py:
 THING_NAME = "SmartHive_Pi_Hive1"
 TOPIC_TELEMETRY = "hive/hive1/telemetry"
-TOPIC_VISION = "hive/hive1/vision"
+TOPIC_AUDIO = "hive/hive1/audio"
 TOPIC_CONTROL = "hive/hive1/control"
 
 # Hive 2 - config.py:
 THING_NAME = "SmartHive_Pi_Hive2"
 TOPIC_TELEMETRY = "hive/hive2/telemetry"
+TOPIC_AUDIO = "hive/hive2/audio"
 # ... etc
 ```
 
@@ -307,7 +329,7 @@ TOPIC_TELEMETRY = "hive/hive2/telemetry"
 ```python
 # Subscribe to all hives:
 client.subscribe("hive/+/telemetry")  # + is wildcard
-client.subscribe("hive/+/vision")
+client.subscribe("hive/+/audio")
 ```
 
 ---
@@ -344,17 +366,33 @@ arecord -d 5 test.wav
 aplay test.wav
 ```
 
-### AWS Connection Failed?
+### MQTT Connection Failed?
 ```bash
+# Check mosquitto broker:
+docker ps | grep mosquitto
+
+# Test local MQTT:
+docker exec -it mosquitto mosquitto_sub -t "hive/#" -v
+
+# If using AWS IoT Core:
 # Verify certificates exist:
 ls certs/
 
 # Check permissions:
 chmod 644 certs/*.pem.crt
 chmod 600 certs/*.pem.key
+```
 
-# Test MQTT connection:
-# Use AWS IoT Console → Test → Subscribe to hive/#
+### Audio ML Not Working?
+```bash
+# Check audio model exists:
+ls models/audio_model_pipeline.pkl
+
+# Verify audio ML container:
+docker logs smart-hive-audio -f
+
+# Check microphone:
+docker exec smart-hive-edge arecord -l
 ```
 
 ---
@@ -398,31 +436,32 @@ config.IS_MOCK_ENVIRONMENT = True
 ```python
 IS_MOCK_ENVIRONMENT = True
 TELEMETRY_INTERVAL_SECONDS = 5
-VISION_LOOP_INTERVAL_SECONDS = 1
+AUDIO_CONFIDENCE_THRESHOLD = 0.5  # More sensitive for testing
 ```
 
 ### For Testing (Raspberry Pi):
 ```python
 IS_MOCK_ENVIRONMENT = False
 TELEMETRY_INTERVAL_SECONDS = 10
-VISION_LOOP_INTERVAL_SECONDS = 2
-S3_SNAPSHOT_INTERVAL_SECONDS = 600
+AUDIO_CONFIDENCE_THRESHOLD = 0.6
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
 ```
 
 ### For Production (Deployed):
 ```python
 IS_MOCK_ENVIRONMENT = False
 TELEMETRY_INTERVAL_SECONDS = 30
-VISION_LOOP_INTERVAL_SECONDS = 5
-S3_SNAPSHOT_INTERVAL_SECONDS = 1800  # 30 minutes
+AUDIO_CONFIDENCE_THRESHOLD = 0.7  # Reduce false alarms
+CAMERA_FPS = 15  # Lower bandwidth
 ```
 
 ### For Research/Data Collection:
 ```python
 IS_MOCK_ENVIRONMENT = False
 TELEMETRY_INTERVAL_SECONDS = 1  # High frequency
-VISION_LOOP_INTERVAL_SECONDS = 1
-S3_SNAPSHOT_INTERVAL_SECONDS = 60  # Every minute
+AUDIO_CONFIDENCE_THRESHOLD = 0.5
+ENABLE_DYNAMODB = true  # Store all data
 # ⚠️ Warning: Generates LOTS of data!
 ```
 
@@ -431,18 +470,25 @@ S3_SNAPSHOT_INTERVAL_SECONDS = 60  # Every minute
 ## 💡 PRO TIPS
 
 1. **Start with longer intervals**, then decrease as needed
-2. **Monitor AWS costs** for first week
-3. **Calibrate thresholds** after collecting baseline data
-4. **Use mock mode** for UI development
-5. **Test real mode** before full deployment
+2. **Calibrate thresholds** after collecting baseline data (run for 1 week)
+3. **Use mock mode** for UI development and testing
+4. **Test Audio ML confidence** - start at 0.5, increase if too many false alarms
+5. **Monitor CPU usage** on Raspberry Pi, adjust intervals if needed
 6. **Keep backup** of working `config.py`
 7. **Document changes** to thresholds in your thesis
 
 ---
 
-Need to change something? All key parameters are in these 3 files:
-- `config.py` - Hardware and timing
+Need to change something? All key parameters are in these files:
+- `config.py` - Hardware, timing, and Audio ML settings
 - `dashboard/static/app.js` - Thresholds and alerts
-- `.env` - AWS credentials
+- `.env` - AWS credentials (optional)
+- `models/audio_model_pipeline.pkl` - Audio ML model (retrain if needed)
+
+For more details, see:
+- **Audio ML Training:** `../AUDIO_ML_GUIDE.md`
+- **Camera Setup:** `../USB_CAMERA_TROUBLESHOOTING.md`
+- **Deployment:** `DEPLOYMENT.md`
+- **Troubleshooting:** `../DOCUMENTATION_INDEX.md`
 
 Happy beekeeping! 🐝

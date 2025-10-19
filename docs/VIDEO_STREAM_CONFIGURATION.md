@@ -1,12 +1,20 @@
 # Video Stream Configuration
 
-## Overview
-The Smart Hive AI system has **two separate video processes**:
+> **⚠️ NOTICE:** This document describes legacy Vision AI features that are **NOT CURRENTLY USED**.
+> 
+> **Current System:** USB camera streams live video only (NO AI detection on video).
+> 
+> **For current camera documentation, see:**
+> - [../USB_CAMERA_TROUBLESHOOTING.md](../USB_CAMERA_TROUBLESHOOTING.md) - Camera setup and troubleshooting
+> - [../CAMERA_DEPLOYMENT_UPDATE.md](../CAMERA_DEPLOYMENT_UPDATE.md) - Recent camera fixes
 
-1. **Live Video Stream** - Continuous camera feed displayed on dashboard
-2. **AI Vision Detection** - Periodic queen bee detection with TensorFlow Lite
+## Overview (Legacy Documentation)
+The Smart Hive AI system **originally** had two separate video processes:
 
-These run at different intervals for optimal performance.
+1. **Live Video Stream** - Continuous camera feed displayed on dashboard ✅ (Still used)
+2. **AI Vision Detection** - Periodic queen bee detection with TensorFlow Lite ❌ (Not used)
+
+**Current Implementation:** Only live video streaming is active. No AI processing on video feed.
 
 ---
 
