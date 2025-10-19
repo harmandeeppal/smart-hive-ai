@@ -306,8 +306,20 @@ AUDIO_SAMPLE_RATE = 22050
 # Default recording duration in seconds (can be overridden per recording)
 AUDIO_RECORD_DURATION_SEC = 30
 
-# Minimum confidence for classification (0.0-1.0)
-# Higher = more confident predictions
+# Minimum confidence threshold for classification (0.0-1.0)
+# This threshold determines when a prediction is accepted vs rejected
+# How it works:
+#   - Model outputs confidence for "queen_present" (0.0 to 1.0)
+#   - If confidence >= AUDIO_CONFIDENCE_THRESHOLD → Accept prediction
+#   - If confidence < AUDIO_CONFIDENCE_THRESHOLD → Return opposite class
+# 
+# Tuning guidelines:
+#   - 0.5 (50%) = Balanced - accepts predictions with >50% confidence
+#   - 0.6 (60%) = Moderate - reduces false positives/negatives (DEFAULT)
+#   - 0.7 (70%) = Conservative - only high confidence predictions
+#   - 0.8 (80%) = Very conservative - may miss some valid detections
+#
+# Recommended: Start with 0.6, adjust based on field testing results
 AUDIO_CONFIDENCE_THRESHOLD = 0.6
 
 # Save audio recordings to disk

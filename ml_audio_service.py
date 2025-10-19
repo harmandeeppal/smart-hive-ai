@@ -54,15 +54,18 @@ class AudioInferenceService:
                 window_seconds = getattr(config, 'AUDIO_WINDOW_SECONDS', 1.0)
                 hop_seconds = getattr(config, 'AUDIO_HOP_SECONDS', 0.5)
                 aggregation_method = getattr(config, 'AUDIO_AGGREGATION_METHOD', 'max_proba')
+                confidence_threshold = getattr(config, 'AUDIO_CONFIDENCE_THRESHOLD', 0.6)
                 
                 self.audio_processor = AudioProcessor(
                     model_path=audio_model_path,
                     window_seconds=window_seconds,
                     hop_seconds=hop_seconds,
-                    aggregation_method=aggregation_method
+                    aggregation_method=aggregation_method,
+                    confidence_threshold=confidence_threshold
                 )
                 logger.info("✅ Audio processor initialized with windowed inference")
                 logger.info(f"   Window: {window_seconds}s, Hop: {hop_seconds}s, Aggregation: {aggregation_method}")
+                logger.info(f"   Confidence threshold: {confidence_threshold} ({confidence_threshold*100:.0f}%)")
             except Exception as e:
                 logger.warning(f"⚠️  Audio processor init failed: {e}")
                 self.audio_processor = None
