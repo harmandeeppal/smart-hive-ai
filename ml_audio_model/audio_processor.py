@@ -450,23 +450,24 @@ class AudioProcessor:
                 logger.error(f"   Individual feature shapes: {[f.shape for f in window_features[:3]]}")
                 return {"classification": "error", "confidence": 0.0, "error": f"invalid_features_{features_matrix.shape[1]}"}
             
-            # Step 3: Apply model pipeline (feature selection, scaling, prediction)
+            # Step 3: Apply model pipeline (scaling, then feature selection)
+            # CRITICAL: Match training pipeline order:
+            #   Training: Extract (312) → Scale (312→312) → LASSO select (312→271) → Model
+            #   Inference: Extract (312) → Scale (312→312) → Select (312→271) → Model
             X = features_matrix
             logger.info(f"📊 Before pipeline: {X.shape}")
             
-            # Apply feature selector if present
-            if 'feature_selector' in self.model_dict and self.model_dict['feature_selector'] is not None:
-                logger.info(f"📊 Feature selector found, applying...")
-                X = self.model_dict['feature_selector'].transform(X)
-                logger.info(f"📊 After feature selection: {X.shape}")
-            else:
-                logger.info(f"📊 No feature selector in pipeline")
-            
-            # Apply scaler if present
+            # Apply scaler FIRST (as in training - fitted on 312 features before selection)
             if 'scaler' in self.model_dict and self.model_dict['scaler'] is not None:
                 logger.info(f"📊 Scaler found, expects {self.model_dict['scaler'].n_features_in_} features, got {X.shape[1]}")
                 X = self.model_dict['scaler'].transform(X)
                 logger.info(f"📊 After scaling: {X.shape}")
+            
+            # Apply feature selector SECOND (as in training - applied after scaling)
+            if 'feature_selector' in self.model_dict and self.model_dict['feature_selector'] is not None:
+                logger.info(f"📊 Feature selector found, applying...")
+                X = self.model_dict['feature_selector'].transform(X)
+                logger.info(f"📊 After feature selection: {X.shape}")
             
             # Step 4: Predict for each window
             predictions = self.model.predict(X)
