@@ -230,10 +230,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusEl = document.getElementById('audio-ml-status');
         const valueEl = document.getElementById('audio-ml-value');
         
-        if (classification.toLowerCase().includes('queen')) {
+        const classLower = classification.toLowerCase();
+        
+        if (classLower === 'queen_present' || classLower.includes('queen present')) {
             statusEl.textContent = '👑 Queen Detected';
             valueEl.textContent = 'Queen bee sounds identified';
-        } else if (classification.toLowerCase().includes('queenless')) {
+        } else if (classLower === 'queen_absent' || classLower.includes('queen absent')) {
+            statusEl.textContent = '⚠️ Queen Absent';
+            valueEl.textContent = 'No queen bee sounds detected';
+        } else if (classLower.includes('queenless')) {
             statusEl.textContent = '⚠️ Queenless Colony';
             valueEl.textContent = 'No queen bee sounds detected';
         } else {
