@@ -87,6 +87,11 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    volumes:
+      # Mount dashboard files for live development (optional)
+      # Allows editing files without rebuilding container
+      - ./dashboard:/app/dashboard
+      - ./config.py:/app/config.py
     networks:
       - smart-hive-net
     environment:

@@ -188,23 +188,51 @@ class SmartHiveSystem:
         self._check_camera_availability()
     
     def _check_camera_availability(self):
-        """Check if camera is actually available and working."""
+        """
+        Check if camera is actually available and working.
+        Provides detailed diagnostic information if camera fails.
+        """
         try:
             if self.vision_processor and hasattr(self.vision_processor, 'camera'):
                 if self.vision_processor.camera and self.vision_processor.camera.isOpened():
                     # Test read to confirm camera works
                     ret, frame = self.vision_processor.camera.read()
                     if ret and frame is not None:
-                        width = self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_WIDTH)
-                        height = self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                        print(f"✅ Camera available: {int(width)}x{int(height)}")
+                        width = int(self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_WIDTH))
+                        height = int(self.vision_processor.camera.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                        backend = self.vision_processor.camera.getBackendName()
+                        print(f"✅ Camera fully operational")
+                        print(f"   Resolution: {width}x{height}")
+                        print(f"   Backend: {backend}")
+                        print(f"   Video feed available at: http://localhost:5001/video_feed")
                         self.camera_available = True
+                        
+                        # Publish camera status to MQTT
+                        self.mqtt_client.publish('hive/status/video',
+                                                json.dumps({
+                                                    "enabled": True,
+                                                    "available": True,
+                                                    "resolution": f"{width}x{height}",
+                                                    "backend": backend
+                                                }))
                         return
             
-            print("⚠️  Camera not available - will use fallback frames")
+            print("⚠️  Camera NOT available")
+            print("   Video feed will show 'Camera Not Available' message")
+            print("   Run debugging commands from CAMERA_DEBUGGING_COMMANDS.md")
             self.camera_available = False
+            
+            # Publish camera unavailable status
+            self.mqtt_client.publish('hive/status/video',
+                                    json.dumps({
+                                        "enabled": True,
+                                        "available": False,
+                                        "error": "Camera initialization failed"
+                                    }))
         except Exception as e:
-            print(f"⚠️  Camera check failed: {e}")
+            print(f"⚠️  Camera status check failed: {e}")
+            import traceback
+            traceback.print_exc()
             self.camera_available = False
 
     def initialize_aws_clients(self):

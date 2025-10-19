@@ -193,43 +193,103 @@ class RealLIS3DH:
 
 class RealVisionProcessor:
     def __init__(self, model_path):
+        """
+        Initialize vision processor with USB camera and TFLite model.
+        Includes robust camera detection with multiple backends and retry logic.
+        """
+        self.camera = None
+        self.interpreter = None
+        self.frame = None
+        self.latest_detection = None
+        self.frame_counter = 0
+        
+        # Try to initialize camera with multiple strategies
+        camera_index = config.CAMERA_DEVICE_INDEX if config.CAMERA_TYPE == "USB" else 0
+        self.camera = self._initialize_camera_with_retry(camera_index)
+        
+        # Initialize ML model (independent of camera)
         try:
-            # Use camera configuration from config
-            camera_index = config.CAMERA_DEVICE_INDEX if config.CAMERA_TYPE == "USB" else 0
-            self.camera = cv2.VideoCapture(camera_index)
-            
-            # Check if camera opened successfully
-            if not self.camera.isOpened():
-                raise Exception(f"Failed to open camera at index {camera_index}")
-            
-            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
-            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
-            
-            # Test read a frame to verify camera is working
-            ret, test_frame = self.camera.read()
-            if not ret or test_frame is None:
-                raise Exception(f"Camera opened but failed to read test frame")
-            
-            print(f"Camera successfully captured test frame: {test_frame.shape}")
-            
             self.interpreter = tflite.Interpreter(model_path=model_path)
             self.interpreter.allocate_tensors()
             self.input_details = self.interpreter.get_input_details()
             self.output_details = self.interpreter.get_output_details()
-            
-            # --- NEW: Get model input size ---
             self.input_height = self.input_details[0]['shape'][1]
             self.input_width = self.input_details[0]['shape'][2]
-
-            self.frame = test_frame # Store the initial test frame
-            self.latest_detection = None  # Store latest detection result (box, confidence)
-            self.frame_counter = 0  # Counter for processing every Nth frame
-            
-            print(f"Successfully initialized Real Vision Processor with {config.CAMERA_TYPE} camera.")
+            print(f"✅ TFLite model loaded: {model_path}")
         except Exception as e:
-            print(f"Error initializing Real Vision Processor: {e}")
-            self.camera = None
+            print(f"⚠️  Failed to load TFLite model: {e}")
             self.interpreter = None
+    
+    def _initialize_camera_with_retry(self, camera_index):
+        """
+        Try multiple camera backends and strategies to initialize camera.
+        
+        Args:
+            camera_index (int): Camera device index (usually 0 for USB camera)
+        
+        Returns:
+            cv2.VideoCapture or None: Initialized camera or None if all attempts fail
+        """
+        import time
+        
+        # Strategy 1: Try V4L2 backend (best for Linux/Raspberry Pi)
+        print(f"📷 Attempting camera initialization (index {camera_index})...")
+        backends = [
+            (cv2.CAP_V4L2, "V4L2 (Video4Linux)"),
+            (cv2.CAP_ANY, "ANY (auto-detect)"),
+        ]
+        
+        for backend, backend_name in backends:
+            print(f"   Trying backend: {backend_name}")
+            try:
+                cap = cv2.VideoCapture(camera_index, backend)
+                
+                if not cap.isOpened():
+                    print(f"   ❌ Failed to open with {backend_name}")
+                    cap.release()
+                    continue
+                
+                # Configure camera settings
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAMERA_WIDTH)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAMERA_HEIGHT)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer for lower latency
+                
+                # Verify actual settings
+                actual_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                actual_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                
+                # Give camera time to warm up (important for USB cameras)
+                print(f"   ⏳ Waiting for camera warmup (2 seconds)...")
+                time.sleep(2)
+                
+                # Try reading test frame multiple times (first few frames often fail)
+                for attempt in range(5):
+                    ret, test_frame = cap.read()
+                    if ret and test_frame is not None:
+                        self.frame = test_frame  # Store initial frame
+                        print(f"   ✅ Camera initialized successfully!")
+                        print(f"      Backend: {backend_name}")
+                        print(f"      Resolution: {actual_width}x{actual_height}")
+                        print(f"      Frame shape: {test_frame.shape}")
+                        return cap
+                    print(f"   ⏳ Test frame attempt {attempt+1}/5 failed, retrying...")
+                    time.sleep(0.5)
+                
+                print(f"   ❌ Camera opened but failed to capture frames with {backend_name}")
+                cap.release()
+                
+            except Exception as e:
+                print(f"   ❌ Exception with {backend_name}: {e}")
+                continue
+        
+        # All strategies failed
+        print(f"❌ Camera initialization FAILED after trying all backends")
+        print(f"   Troubleshooting steps:")
+        print(f"   1. Check if camera is connected: ls -l /dev/video*")
+        print(f"   2. Check camera permissions: sudo usermod -aG video $USER")
+        print(f"   3. Test camera outside Docker: v4l2-ctl --list-devices")
+        print(f"   4. Try different camera index in config.py: CAMERA_DEVICE_INDEX")
+        return None
 
     def capture_and_process_frame(self, run_inference=True):
         """
