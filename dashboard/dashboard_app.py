@@ -40,7 +40,7 @@ import ssl
 import time
 import threading
 import requests
-from flask import Response
+from flask import Response, request, jsonify
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from paho.mqtt import client as mqtt_client_module
@@ -314,6 +314,33 @@ def handle_trigger_audio_recording(data):
         "duration": recording_command["duration_sec"],
         "timestamp": recording_command["timestamp"]
     })
+
+
+@app.route('/mqtt/publish', methods=['POST'])
+def mqtt_publish():
+    """
+    HTTP endpoint for publishing MQTT messages from dashboard UI.
+    
+    Used by video/AI vision toggle buttons to send control commands.
+    
+    Returns:
+        JSON response with success status
+    """
+    try:
+        data = request.get_json()
+        topic = data.get('topic', 'hive/control')
+        message = data.get('message', '{}')
+        
+        print(f"📤 Publishing to {topic}: {message}")
+        result = mqtt_client.publish(topic, message, qos=1)
+        
+        if result.rc == 0:
+            return jsonify({"status": "success", "topic": topic})
+        else:
+            return jsonify({"status": "error", "message": "Failed to publish"}), 500
+    except Exception as e:
+        print(f"❌ Error publishing MQTT message: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route('/')
