@@ -452,16 +452,21 @@ class AudioProcessor:
             
             # Step 3: Apply model pipeline (feature selection, scaling, prediction)
             X = features_matrix
+            logger.info(f"📊 Before pipeline: {X.shape}")
             
             # Apply feature selector if present
             if 'feature_selector' in self.model_dict and self.model_dict['feature_selector'] is not None:
+                logger.info(f"📊 Feature selector found, applying...")
                 X = self.model_dict['feature_selector'].transform(X)
-                logger.debug(f"After feature selection: {X.shape}")
+                logger.info(f"📊 After feature selection: {X.shape}")
+            else:
+                logger.info(f"📊 No feature selector in pipeline")
             
             # Apply scaler if present
             if 'scaler' in self.model_dict and self.model_dict['scaler'] is not None:
+                logger.info(f"📊 Scaler found, expects {self.model_dict['scaler'].n_features_in_} features, got {X.shape[1]}")
                 X = self.model_dict['scaler'].transform(X)
-                logger.debug(f"After scaling: {X.shape}")
+                logger.info(f"📊 After scaling: {X.shape}")
             
             # Step 4: Predict for each window
             predictions = self.model.predict(X)
