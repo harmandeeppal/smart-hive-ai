@@ -99,47 +99,77 @@ header h1 { margin: 0; font-size: 1.5rem; }
     justify-content: center;
 }
 
-/* Video Toggle Button - match standard sensor blue */
+/* Video Toggle Button - match humidity/temp sensor colors */
 .video-toggle {
-    background-color: #4267B2;
+    background-color: #4267B2; /* Blue when ON */
     flex: 1;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .video-toggle:hover {
-    background-color: #365899;
+    background-color: #365899; /* Darker blue on hover */
 }
 
 .video-toggle[data-state="off"] {
-    background-color: #6c757d;
+    background-color: #c0c0c0; /* Silver/Light gray when OFF */
 }
 
 .video-toggle[data-state="off"]:hover {
-    background-color: #5a6268;
+    background-color: #a8a8a8; /* Slightly darker silver on hover */
 }
 
-/* AI Vision Toggle Button - match standard sensor blue */
+/* AI Vision Toggle Button - match humidity/temp sensor colors */
 .ai-toggle {
-    background-color: #4267B2;
+    background-color: #4267B2; /* Blue when ON */
     flex: 1;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .ai-toggle:hover {
-    background-color: #365899;
+    background-color: #365899; /* Darker blue on hover */
 }
 
 .ai-toggle[data-state="off"] {
-    background-color: #6c757d;
+    background-color: #c0c0c0; /* Silver/Light gray when OFF */
 }
 
 .ai-toggle[data-state="off"]:hover {
-    background-color: #5a6268;
+    background-color: #a8a8a8; /* Slightly darker silver on hover */
 }
 
-/* Toggle Button Styles */
-.toggle-btn { background-color: #4267B2; color: white; border: none; padding: 0.6rem 1rem; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; margin-top: auto; /* Pushes button to bottom */ }
-.toggle-btn:hover { background-color: #365899; }
-.toggle-btn.off { background-color: #6c757d; }
-.toggle-btn.off:hover { background-color: #5a6268; }
+/* Toggle Button Styles (Sensor Cards) */
+.toggle-btn { 
+    background-color: #4267B2; /* Blue when ON */
+    color: white; 
+    border: none; 
+    padding: 0.6rem 1rem; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-weight: 500;
+    transition: all 0.3s ease; 
+    margin-top: auto; /* Pushes button to bottom */
+}
+.toggle-btn:hover { 
+    background-color: #365899; /* Darker blue on hover */
+}
+.toggle-btn.off { 
+    background-color: #c0c0c0; /* Silver/Light gray when OFF */
+}
+.toggle-btn.off:hover { 
+    background-color: #a8a8a8; /* Slightly darker silver on hover */
+}
 
 /* Audio ML Card Styles - ENHANCED */
 #audio-ml-card { 
