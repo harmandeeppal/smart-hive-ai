@@ -226,24 +226,47 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('audio-classification').textContent = classification;
         document.getElementById('audio-confidence').textContent = `${(confidence * 100).toFixed(1)}%`;
         
-        // Update status based on classification
+        // Update status based on classification AND confidence
         const statusEl = document.getElementById('audio-ml-status');
         const valueEl = document.getElementById('audio-ml-value');
         
         const classLower = classification.toLowerCase();
+        const confidenceThreshold = 0.6; // Match backend threshold (configurable in config.py)
         
-        if (classLower === 'queen_present' || classLower.includes('queen present')) {
+        // Check if confidence is too low (below threshold)
+        if (confidence < confidenceThreshold) {
+            statusEl.textContent = '⚠️ Low Confidence';
+            statusEl.style.color = '#ff9800'; // Orange warning
+            valueEl.textContent = `Confidence ${(confidence * 100).toFixed(1)}% is below ${(confidenceThreshold * 100)}% threshold. Please record again in a quieter environment or closer to the hive.`;
+            valueEl.style.color = '#ff9800';
+            
+            // Add visual indicator
+            const classificationEl = document.getElementById('audio-classification');
+            classificationEl.style.color = '#ff9800';
+        } else if (classLower === 'queen_present' || classLower.includes('queen present')) {
             statusEl.textContent = '👑 Queen Detected';
+            statusEl.style.color = '#4caf50'; // Green
             valueEl.textContent = 'Queen bee sounds identified';
+            valueEl.style.color = '#e0e0e0';
+            document.getElementById('audio-classification').style.color = '#4caf50';
         } else if (classLower === 'queen_absent' || classLower.includes('queen absent')) {
             statusEl.textContent = '⚠️ Queen Absent';
+            statusEl.style.color = '#ff5722'; // Red
             valueEl.textContent = 'No queen bee sounds detected';
+            valueEl.style.color = '#e0e0e0';
+            document.getElementById('audio-classification').style.color = '#ff5722';
         } else if (classLower.includes('queenless')) {
             statusEl.textContent = '⚠️ Queenless Colony';
+            statusEl.style.color = '#ff5722';
             valueEl.textContent = 'No queen bee sounds detected';
+            valueEl.style.color = '#e0e0e0';
+            document.getElementById('audio-classification').style.color = '#ff5722';
         } else {
             statusEl.textContent = 'Analysis Complete';
+            statusEl.style.color = '#2196f3'; // Blue
             valueEl.textContent = classification;
+            valueEl.style.color = '#e0e0e0';
+            document.getElementById('audio-classification').style.color = '#2196f3';
         }
         
         // Update last analysis time
@@ -461,23 +484,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateAudioLevel(soundDb) {
-        // Update waveform data with simulated wave based on sound level
+        // Normalize sound level (40-100 dB range mapped to 0-1)
+        // More sensitive scaling: 40dB=quiet, 70dB=moderate, 100dB=loud
+        const minDb = 40;
+        const maxDb = 90;
+        const clampedDb = Math.min(Math.max(soundDb || 0, minDb), maxDb);
+        const normalizedDb = (clampedDb - minDb) / (maxDb - minDb);
+        
+        // Update waveform data with more dynamic wave
         waveformData.shift();
-        const normalizedDb = Math.min(Math.max(soundDb || 0, 0), 100) / 100;
-        const waveValue = Math.sin(Date.now() / 100) * normalizedDb;
+        // Multiple frequencies for more natural waveform
+        const time = Date.now() / 1000;
+        const wave1 = Math.sin(time * 5) * normalizedDb;
+        const wave2 = Math.sin(time * 8) * normalizedDb * 0.5;
+        const wave3 = Math.sin(time * 12) * normalizedDb * 0.3;
+        const waveValue = (wave1 + wave2 + wave3) * 1.2; // Amplify for visibility
         waveformData.push(waveValue);
 
-        // Update level bars
+        // Update level bars with MORE SENSITIVITY
         const levelBars = document.querySelectorAll('.level-bar');
-        const activeBarCount = Math.floor(normalizedDb * levelBars.length);
+        // More responsive: show bars even at lower levels
+        const sensitivity = 1.5; // Amplify sensitivity
+        const activeBarCount = Math.min(
+            Math.floor(normalizedDb * sensitivity * levelBars.length),
+            levelBars.length
+        );
         
         levelBars.forEach((bar, index) => {
             if (index < activeBarCount) {
                 bar.classList.add('active');
-                bar.style.height = `${10 + (index * 9)}%`;
+                // Smoother height transitions
+                const heightPercent = 15 + (index * 12);
+                bar.style.height = `${heightPercent}%`;
             } else {
                 bar.classList.remove('active');
-                bar.style.height = '5%';
+                bar.style.height = '8%';
             }
         });
 
