@@ -207,14 +207,15 @@ class SmartHiveSystem:
                         print(f"   Video feed available at: http://localhost:5001/video_feed")
                         self.camera_available = True
                         
-                        # Publish camera status to MQTT
-                        self.mqtt_client.publish('hive/status/video',
-                                                json.dumps({
-                                                    "enabled": True,
-                                                    "available": True,
-                                                    "resolution": f"{width}x{height}",
-                                                    "backend": backend
-                                                }))
+                        # Publish camera status to MQTT (only if mqtt_client is initialized)
+                        if hasattr(self, 'mqtt_client') and self.mqtt_client:
+                            self.mqtt_client.publish('hive/status/video',
+                                                    json.dumps({
+                                                        "enabled": True,
+                                                        "available": True,
+                                                        "resolution": f"{width}x{height}",
+                                                        "backend": backend
+                                                    }))
                         return
             
             print("⚠️  Camera NOT available")
@@ -222,13 +223,14 @@ class SmartHiveSystem:
             print("   Run debugging commands from CAMERA_DEBUGGING_COMMANDS.md")
             self.camera_available = False
             
-            # Publish camera unavailable status
-            self.mqtt_client.publish('hive/status/video',
-                                    json.dumps({
-                                        "enabled": True,
-                                        "available": False,
-                                        "error": "Camera initialization failed"
-                                    }))
+            # Publish camera unavailable status (only if mqtt_client is initialized)
+            if hasattr(self, 'mqtt_client') and self.mqtt_client:
+                self.mqtt_client.publish('hive/status/video',
+                                        json.dumps({
+                                            "enabled": True,
+                                            "available": False,
+                                            "error": "Camera initialization failed"
+                                        }))
         except Exception as e:
             print(f"⚠️  Camera status check failed: {e}")
             import traceback

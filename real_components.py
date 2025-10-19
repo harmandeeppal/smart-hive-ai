@@ -218,7 +218,13 @@ class RealVisionProcessor:
             print(f"✅ TFLite model loaded: {model_path}")
         except Exception as e:
             print(f"⚠️  Failed to load TFLite model: {e}")
+            print(f"   AI vision features will be disabled")
             self.interpreter = None
+            # Set default values for attributes used elsewhere
+            self.input_details = None
+            self.output_details = None
+            self.input_height = 224  # Default input size
+            self.input_width = 224
     
     def _initialize_camera_with_retry(self, camera_index):
         """
@@ -311,8 +317,8 @@ class RealVisionProcessor:
             print("Warning: Failed to read frame from camera")
             return np.zeros((480, 640, 3), dtype=np.uint8), (None, None)
         
-        # If inference not requested, return raw frame
-        if not run_inference:
+        # If inference not requested or model not loaded, return raw frame
+        if not run_inference or not self.interpreter:
             self.frame = frame
             return frame, (None, None)
         
