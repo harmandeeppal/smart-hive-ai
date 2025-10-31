@@ -212,18 +212,12 @@ aws iam create-user --user-name smarthive-user
         "dynamodb:Scan"
       ],
       "Resource": "arn:aws:dynamodb:ap-southeast-2:YOUR_ACCOUNT_ID:table/SmartHiveTelemetry"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject"
-      ],
-      "Resource": "arn:aws:s3:::your-bucket-name/*"
     }
   ]
 }
 ```
+
+**Note:** This policy only grants DynamoDB access. S3 storage is not used in current implementation.
 
 **Generate Access Keys**:
 ```bash
@@ -301,10 +295,11 @@ KEY_FILE_NAME=your-private.pem.key
 # Flask secret key (generate a random string)
 SECRET_KEY=your-random-secret-key-here
 
-# S3 Configuration (optional)
-S3_BUCKET_NAME=your-bucket-name
-ENABLE_S3=false
+# DynamoDB Configuration (optional - enables cloud storage)
+ENABLE_DYNAMODB=false
 ```
+
+**Note:** Set `ENABLE_DYNAMODB=true` only if you want to store data in AWS DynamoDB. System works locally without it.
 
 **Find Your IoT Endpoint**:
 ```bash
@@ -391,7 +386,7 @@ docker logs -f smart-hive-edge
 #   BME280 Temperature/Humidity sensor initialized
 #   LIS3DH Vibration sensor initialized
 #   INMP441 Sound sensor initialized
-#   Vision Processor initialized
+#   USB Camera initialized (V4L2 backend, 640x480)
 # Dashboard MQTT client connected successfully.
 # Smart Hive System initialized successfully
 ```
@@ -405,31 +400,48 @@ docker logs -f smart-hive-edge
 docker logs smart-hive-edge | grep "initialized"
 
 # Should show all sensors initialized:
-# ✓ BME280
-# ✓ LIS3DH
-# ✓ INMP441
-# ✓ Vision Processor
+# ✓ BME280 (Temperature/Humidity)
+# ✓ LIS3DH (Vibration)
+# ✓ INMP441 (Microphone)
+# ✓ USB Camera
 ```
 
-### 2. Verify MQTT Connection
+### 2. Check Audio ML Service
+
+```bash
+# Check audio ML container
+docker logs smart-hive-audio | grep "model"
+
+# Expected: "Audio model loaded successfully"
+# Should show: 312 features, Random Forest classifier
+```
+
+### 3. Verify MQTT Connection
 
 ```bash
 # Check MQTT connection
 docker logs smart-hive-edge | grep -i "mqtt"
 
 # Expected: "MQTT connected successfully"
+
+# Test MQTT messages
+docker exec -it mosquitto mosquitto_sub -t "hive/#" -v
+# Should see telemetry and audio ML messages
 ```
 
-### 3. Test Video Stream
+### 4. Test Video Stream
 
 ```bash
 # From another computer on same network:
 curl http://raspberrypi.local:5001/video_feed
 
 # Should return MJPEG stream data
+
+# Or open in browser:
+# http://raspberrypi.local:5001/video_feed
 ```
 
-### 4. Access Dashboard
+### 5. Access Dashboard
 
 **From Web Browser**:
 ```
@@ -437,12 +449,15 @@ http://raspberrypi.local:5000
 ```
 
 **Expected**:
-- Live video feed from hive
-- Real-time sensor readings
+- Live USB camera video feed from hive
+- Real-time sensor readings (temperature, humidity, vibration, sound)
+- Audio ML predictions with confidence levels
 - Sensor toggle controls
-- Temperature, humidity, vibration, sound metrics
+- Status indicators for each metric
 
-### 5. Verify DynamoDB Writes
+### 6. Verify DynamoDB Writes (If Enabled)
+
+**Only if `ENABLE_DYNAMODB=true` in your .env file:**
 
 ```bash
 # Run diagnostic script
@@ -457,6 +472,8 @@ docker exec smart-hive-edge python3 scripts/check_dynamodb_timestamps.py
 2. Select `SmartHiveTelemetry` table
 3. Click "Explore table items"
 4. Verify records with `device_id: SmartHive_Pi`
+
+**Note:** DynamoDB is optional. System works locally with MQTT broker only.
 
 ## Production Optimization
 
@@ -639,6 +656,6 @@ After successful deployment:
 ## Support
 
 For additional help:
-- Documentation: [docs/](../docs/)
+- Documentation index: [../index.md](../index.md)
 - Issues: [GitHub Issues](https://github.com/harmandeeppal/smart-hive-ai/issues)
-- Troubleshooting: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- Troubleshooting: [reference/troubleshooting.md](../reference/troubleshooting.md)
