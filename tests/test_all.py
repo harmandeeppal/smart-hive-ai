@@ -23,10 +23,6 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import config
-try:
-    from ml_inference_service import MLInferenceService
-except ImportError:
-    MLInferenceService = None
 
 try:
     from mock_components import MockBME280, MockDFRobot, MockHTS221
@@ -275,7 +271,7 @@ class TestIntegration:
     
     def test_project_structure_complete(self):
         """Test project has all required directories and files."""
-        required_dirs = ['src', 'tests', 'docs', 'models', 'ml_vision_model', 'ml_audio_model']
+        required_dirs = ['tests', 'docs', 'models', 'ml_vision_model', 'ml_audio_model']
         required_files = ['README.md', 'app.py', 'config.py', 'docker-compose.yml']
         
         for dir_name in required_dirs:

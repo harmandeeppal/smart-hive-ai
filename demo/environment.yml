@@ -1,0 +1,55 @@
+name: smart-hive-demo
+
+channels:
+  - conda-forge       # everything except torch/torchvision (installed via pip below)
+  - defaults
+
+dependencies:
+  # ── Python runtime ──────────────────────────────────────────
+  - python=3.11.9
+  - pip=24.0
+
+  # ── Core numerics ───────────────────────────────────────────
+  # numpy 2.x required: audio_model.pkl was saved with numpy 2.x (uses numpy._core)
+  - numpy=2.0.2
+  - joblib=1.4.2
+
+  # ── Machine learning ────────────────────────────────────────
+  # scikit-learn 1.7.2 requires Python 3.10+ — now satisfied
+  - scikit-learn=1.7.2
+
+  # ── Audio processing ────────────────────────────────────────
+  # librosa 0.10.2: first release with numpy 2.x support (0.10.1 breaks on numpy 2.x)
+  - librosa=0.10.2
+  # soundfile: installed via pip (see below)
+
+  # ── Computer vision ─────────────────────────────────────────
+  # opencv via pip only: conda-forge opencv is compiled against NumPy 1.x
+  # and breaks with NumPy 2.x (_ARRAY_API not found)
+
+  # ── Web / dashboard ─────────────────────────────────────────
+  - flask=2.3.3
+  - flask-socketio=5.3.6
+  - eventlet=0.33.3
+
+  # ── MQTT ────────────────────────────────────────────────────
+  - mosquitto          # broker — runs as local process in non-Docker demo
+  - paho-mqtt=2.1.0
+
+  # ── Utilities ───────────────────────────────────────────────
+  - python-dotenv=1.0.0
+  - requests=2.31.0
+
+  # ── pip: torch from PyTorch wheel index (CPU-only build) ────
+  # conda-forge torch has a broken fbgemm.dll on some Windows systems;
+  # the official PyTorch wheel bundles its own MKL/OMP and avoids this.
+  # --extra-index-url lets pip find the +cpu wheels on download.pytorch.org.
+  - pip:
+    - --extra-index-url https://download.pytorch.org/whl/cpu
+    # torch 2.5.1+cpu: full numpy 2.x support; 2.3.x broke numpy bridge, 2.4.0 had fbgemm.dll issues on AMD Zen 3+
+    - torch==2.5.1+cpu
+    - torchvision==0.20.1+cpu
+    - soundfile==0.12.1
+    - ultralytics==8.0.196
+    # opencv via pip: wheels compiled against NumPy 2.x
+    - opencv-python-headless==4.10.0.84

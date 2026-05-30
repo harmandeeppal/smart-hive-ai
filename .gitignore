@@ -23,7 +23,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANUAL
 
 # --- Python virtual environments ---
 venv/
@@ -36,6 +35,7 @@ ENV/
 .env
 .env.*
 !.env.example
+!.env.demo.example
 
 # --- AWS Certificates - CRITICAL for security ---
 certs/
@@ -49,8 +49,21 @@ certs/
 *.sln
 *.sw?
 
-# --- TFLite model (can be large and is generated) ---
+# --- ML model binaries (large files — hosted on Hugging Face Hub) ---
 *.tflite
+# *.pt and *.pkl will be added here after uploading to Hugging Face (Phase 4)
+
+# --- Generated demo assets (run demo/generate_sample_*.py to recreate) ---
+demo/sample_audio/
+demo/sample_video/
+
+# --- Local demo environment (copy from demo/.env.demo.example) ---
+.env.demo
+
+# --- Test / coverage artifacts ---
+.pytest_cache/
+.coverage
+htmlcov/
 
 # --- OS-generated files ---
 .DS_Store

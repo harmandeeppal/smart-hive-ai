@@ -1,18 +1,20 @@
 # Dockerfile.dashboard
-# For building the web dashboard container
+# Web dashboard — Flask + Socket.IO real-time interface
+# Runs in DEMO_MODE on Railway (no hardware certs required)
 
-FROM python:3.9-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
+# Apply OS security patches before anything else
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements-dashboard.txt .
 RUN pip install --no-cache-dir -r requirements-dashboard.txt
 
-# --- CORRECTION: Add this line to copy the certificates ---
-COPY certs/ ./certs/
-
-# Copy only the necessary application files
 COPY dashboard/ ./dashboard/
 COPY config.py .
 

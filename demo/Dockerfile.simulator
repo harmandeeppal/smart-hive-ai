@@ -1,0 +1,24 @@
+# Dockerfile.simulator
+# Demo-only beehive sensor simulator — replaces Raspberry Pi hardware
+# Publishes synthetic telemetry and camera frames over MQTT
+
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir \
+    paho-mqtt==2.1.0 \
+    numpy==2.0.2 \
+    opencv-python-headless==4.10.0.84
+
+COPY demo/simulator.py ./demo/simulator.py
+COPY demo/sample_frames/ ./demo/sample_frames/
+
+CMD ["python", "demo/simulator.py"]

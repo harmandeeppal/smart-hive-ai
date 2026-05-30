@@ -14,6 +14,8 @@ Author: Smart Hive AI Team
 Created: October 2025
 """
 
+from __future__ import annotations
+
 import cv2
 import logging
 import time
@@ -49,23 +51,24 @@ class VisionProcessor:
         >>> print(f"Queen detected: {result['detected']}")
     """
     
-    def __init__(self, model_path: str = None, confidence_threshold: float = 0.7, use_camera: bool = True):
+    def __init__(self, model_path: str = None, confidence_threshold: float = None, use_camera: bool = True):
         """
         Initialize vision processor with YOLO model.
-        
+
         Args:
             model_path (str): Path to YOLO model file (vision_model.pt). If None, uses config.VISION_MODEL_PATH
-            confidence_threshold (float): Minimum confidence for detection (0.5-0.95)
+            confidence_threshold (float): Minimum confidence for detection. If None, uses config.VISION_CONFIDENCE_THRESHOLD
             use_camera (bool): Whether to initialize camera access (for edge-app only, not for vision service)
-        
+
         Raises:
             FileNotFoundError: If model file not found
             RuntimeError: If YOLO initialization fails
         """
-        # Use config default if not provided
         if model_path is None:
             model_path = config.VISION_MODEL_PATH
-            
+        if confidence_threshold is None:
+            confidence_threshold = config.VISION_CONFIDENCE_THRESHOLD
+
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
         self.use_camera = use_camera
@@ -90,35 +93,21 @@ class VisionProcessor:
             from ultralytics import YOLO
             import torch
             
-            # TEMPORARY FIX: Use pretrained YOLOv8n model instead of custom trained model
-            # The custom vision_model.pt has compatibility issues with PyTorch 2.6
-            # This pretrained model will detect objects (not queen-specific) until we retrain
-            # TODO: Train new queen-specific YOLOv8 model and replace 'yolov8n.pt' with path
             try:
-                logger.info(f"Loading pretrained YOLOv8n model (temporary fix)...")
-                logger.warning(f"Using generic YOLOv8n instead of queen-specific model")
-                logger.warning(f"Original model path was: {model_path}")
-                
-                # FIX: PyTorch 2.6+ changed weights_only default from False to True
-                # This breaks ultralytics model loading (requires many custom classes)
-                # Solution: Temporarily patch torch.load to use weights_only=False
-                # This is SAFE because we're loading from official ultralytics GitHub
+                # PyTorch 2.6+ changed weights_only default from False to True,
+                # breaking ultralytics YOLO model loading (requires many custom classes).
+                # Patch torch.load for the duration of model loading only.
                 original_torch_load = torch.load
-                
+
                 def patched_torch_load(*args, **kwargs):
-                    """Wrapper that sets weights_only=False for YOLO model loading"""
                     kwargs.setdefault('weights_only', False)
                     return original_torch_load(*args, **kwargs)
-                
+
                 torch.load = patched_torch_load
-                logger.info("✅ Patched torch.load to use weights_only=False (safe for official YOLO)")
-                
-                # Use pretrained model (will auto-download on first run)
-                self.model = YOLO('yolov8n.pt')
-                
-                # Restore original torch.load after model loading
+                logger.info(f"Loading queen detection model: {model_path}")
+                self.model = YOLO(model_path)
                 torch.load = original_torch_load
-                logger.info("✅ YOLO model loaded successfully (pretrained YOLOv8n)")
+                logger.info("✅ Queen detection YOLO model loaded successfully")
                 
             except Exception as e:
                 # Log the full exception for debugging

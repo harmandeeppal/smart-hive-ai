@@ -65,9 +65,10 @@ class SmartHiveSystem:
     This class orchestrates all components of the smart hive system including sensor
     data collection, AWS IoT communication, DynamoDB persistence, and video streaming.
     
-    Note: ML inference (vision and audio detection) runs in a separate microservice
-    (ml_inference_service.py) for resource isolation. Communication happens via MQTT
-    on topics: hive/ml/vision/results and hive/ml/audio/results
+    Note: ML inference runs in two separate microservices for resource isolation:
+      - ml_vision_service.py  — YOLO queen detection, publishes to hive/vision/detection
+      - ml_audio_service.py   — audio classification, publishes to hive/audio/classification
+    Communication with this service is via MQTT only.
     
     Attributes:
         is_running (bool): System operational status flag
@@ -755,16 +756,9 @@ class SmartHiveSystem:
         # If IoU is below threshold, consider them different queens
         return iou < threshold
 
-    # NOTE: ML inference loops removed - now run in separate microservice
-    # Previously:
-    #   def ml_vision_loop(self) - YOLO v8 detection (now in ml_inference_service.py)
-    #   def ml_audio_loop(self) - Audio classification (now in ml_inference_service.py)
-    # 
-    # Communication:
-    #   - Edge app publishes telemetry to hive/telemetry
-    #   - ML service subscribes to vision processor output
-    #   - ML service publishes to hive/ml/vision/results and hive/ml/audio/results
-    #   - Dashboard subscribes to both telemetry and ML results
+    # ML inference runs in dedicated microservices (see ml_vision_service.py, ml_audio_service.py).
+    # This edge app publishes raw camera frames to hive/telemetry/camera/frame;
+    # the vision service consumes them and publishes detections to hive/vision/detection.
 
     def camera_frame_publisher_loop(self):
         """
@@ -863,8 +857,7 @@ class SmartHiveSystem:
         all_threads = []
         try:
             # Create and start all threads
-            # NOTE: ML loops (ml_vision_loop, ml_audio_loop) moved to separate microservice
-            # See ml_inference_service.py for ML inference logic
+            # ML inference runs in ml_vision_service.py and ml_audio_service.py
             task_map = {
                 self.start_video_server: (),
                 self.s3_snapshot_loop: (),

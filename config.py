@@ -173,8 +173,7 @@ VISION_PROCESS_EVERY_N_FRAMES = 3  # Process every 3rd frame (approximately 6-7 
 # Prevents duplicate detections and excessive alerts
 VISION_DETECTION_COOLDOWN_SECONDS = 3600  # 1 hour cooldown
 
-# Minimum confidence threshold for queen detection (0.0 - 1.0)
-VISION_CONFIDENCE_THRESHOLD = 0.5  # 50% confidence required
+# Minimum confidence threshold for queen detection — overridden by ML MODELS section below
 
 # Legacy interval mode setting (only used if VISION_DETECTION_MODE = "interval")
 VISION_LOOP_INTERVAL_SECONDS = 3600  # Every 1 hour (legacy mode)
@@ -275,8 +274,8 @@ VISION_MODEL_PATH = "models/vision_model.pt"
 
 # Minimum confidence threshold for detection (0.0-1.0)
 # Higher = more conservative, fewer false positives
-# Recommended: 0.6-0.8
-VISION_CONFIDENCE_THRESHOLD = 0.7
+# Override via env var: VISION_CONFIDENCE_THRESHOLD=0.3
+VISION_CONFIDENCE_THRESHOLD = float(os.getenv('VISION_CONFIDENCE_THRESHOLD', '0.5'))
 
 # Process every N frames (balance accuracy vs CPU)
 # 1 = every frame (most accurate, ~20 FPS)
@@ -304,7 +303,7 @@ AUDIO_MODEL_PATH = "models/audio_model.pkl"
 AUDIO_SAMPLE_RATE = 22050
 
 # Default recording duration in seconds (can be overridden per recording)
-AUDIO_RECORD_DURATION_SEC = 30
+AUDIO_RECORD_DURATION_SEC = 30  # 30s window for demo; hardware can increase
 
 # Minimum confidence for classification (0.0-1.0)
 # Higher = more confident predictions
@@ -318,3 +317,6 @@ AUDIO_RECORDINGS_DIR = "audio_recordings"
 
 # MQTT topic for audio results
 TOPIC_AUDIO_RESULTS = "hive/audio/classification"
+
+# MQTT topic for real-time waveform streaming (downsampled PCM packets)
+TOPIC_AUDIO_WAVEFORM = "hive/audio/waveform"
