@@ -55,7 +55,7 @@ import config
 # Initialize Flask application
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
-socketio = SocketIO(app, async_mode='threading')
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins='*')
 
 # ── Demo auth & session control ──────────────────────────────────────────────
 # Only active when DEMO_PASSWORD env var is set.
@@ -204,6 +204,12 @@ def on_message(client, userdata, msg):
         print(f"❌ An error occurred in on_message: {e}")
         import traceback
         traceback.print_exc()
+
+
+@app.route('/health')
+def health():
+    """Railway / container health check endpoint."""
+    return {'status': 'ok'}, 200
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -460,9 +466,6 @@ if __name__ == '__main__':
     print("Setting up MQTT client...")
     setup_mqtt()
     
-    print("Starting Flask-SocketIO server...")
-    # Run Socket.IO server on all interfaces, port 5000
-    # use_reloader=False prevents double execution in debug mode
-    # debug=False for production/Docker deployment
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False, 
-                 use_reloader=False, allow_unsafe_werkzeug=True)
+    port = int(os.getenv('PORT', 5000))
+    print(f"Starting Flask-SocketIO server on port {port}...")
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, use_reloader=False)

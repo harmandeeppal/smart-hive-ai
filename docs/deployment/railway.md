@@ -8,156 +8,128 @@ without cloning the repo or owning a Raspberry Pi.
 ```
 Railway Project: smart-hive-ai
 │
-├── mosquitto   (eclipse-mosquitto:2)  ← internal MQTT broker
-├── simulator   (demo/Dockerfile.simulator) ← synthetic sensor data
-├── ml-audio    (Dockerfile.audio)     ← audio classification
-├── ml-vision   (Dockerfile.vision)    ← YOLOv8 queen detection
-└── dashboard   (Dockerfile.dashboard) ← PUBLIC URL ← users visit this
+├── mosquitto   (eclipse-mosquitto:2)       ← internal MQTT broker
+├── simulator   (demo/Dockerfile.simulator) ← synthetic sensor + camera frames
+├── ml-audio    (Dockerfile.audio)          ← audio classification (DEMO_MODE)
+├── ml-vision   (Dockerfile.vision)         ← YOLOv8 queen detection (DEMO_MODE)
+└── dashboard   (Dockerfile.dashboard)      ← PUBLIC URL ← users visit this
 ```
 
-Services communicate internally via Railway's private network.
-Only `dashboard` exposes a public URL.
+Services talk to each other via Railway's private network.
+Only `dashboard` gets a public HTTPS URL.
 
 ---
 
-## Prerequisites
-
-- Railway account → https://railway.app
-- Railway CLI: `npm install -g @railway/cli` then `railway login`
-- This repo pushed to GitHub
-
----
-
-## Step 1 — Create the Railway project
+## Step 1 — Install Railway CLI and login
 
 ```bash
-railway init
-# Choose "Empty project", name it "smart-hive-ai"
+npm install -g @railway/cli
+railway login
 ```
 
 ---
 
-## Step 2 — Add the mosquitto service
+## Step 2 — Create the project and link repo
 
-In the Railway dashboard → **New Service** → **Docker Image**:
-- Image: `eclipse-mosquitto:2`
-- Service name: `mosquitto`
-
-Add a custom config volume or use the default (anonymous access, port 1883).
-No environment variables needed.
+```bash
+railway init          # choose "Empty project", name it smart-hive-ai
+railway link          # link to the project you just created
+```
 
 ---
 
-## Step 3 — Add the dashboard service (auto-detected from railway.toml)
+## Step 3 — Deploy the dashboard (auto from railway.toml)
 
 ```bash
 railway up
 ```
 
-Railway reads `railway.toml` and deploys `Dockerfile.dashboard`.
+Railway reads `railway.toml` → builds `Dockerfile.dashboard` → deploys.
 
-Set these environment variables in the Railway dashboard for this service:
+Then set environment variables:
 
-| Variable | Value |
-|----------|-------|
-| `MQTT_BROKER` | `mosquitto.railway.internal` |
-| `MQTT_PORT` | `1883` |
-| `DEMO_MODE` | `true` |
-| `DEMO_PASSWORD` | *(choose a password for the login page)* |
-| `SECRET_KEY` | *(random 32-char string — keep secret)* |
-| `PORT` | `5000` |
-
----
-
-## Step 4 — Add the simulator service
-
-In Railway dashboard → **New Service** → **GitHub Repo** (same repo):
-- Service name: `simulator`
-- Dockerfile path: `demo/Dockerfile.simulator`
-
-Environment variables:
-
-| Variable | Value |
-|----------|-------|
-| `MQTT_BROKER` | `mosquitto.railway.internal` |
-| `MQTT_PORT` | `1883` |
-| `TELEMETRY_INTERVAL` | `5` |
-| `FRAME_INTERVAL` | `3` |
-
----
-
-## Step 5 — Add the ml-audio service
-
-New Service → GitHub Repo (same repo):
-- Service name: `ml-audio`
-- Dockerfile path: `Dockerfile.audio`
-
-Environment variables:
-
-| Variable | Value |
-|----------|-------|
-| `MQTT_BROKER` | `mosquitto.railway.internal` |
-| `MQTT_PORT` | `1883` |
-| `DEMO_MODE` | `true` |
-
----
-
-## Step 6 — Add the ml-vision service
-
-New Service → GitHub Repo (same repo):
-- Service name: `ml-vision`
-- Dockerfile path: `Dockerfile.vision`
-
-Environment variables:
-
-| Variable | Value |
-|----------|-------|
-| `MQTT_BROKER` | `mosquitto.railway.internal` |
-| `MQTT_PORT` | `1883` |
-| `VISION_CONFIDENCE_THRESHOLD` | `0.35` |
-
----
-
-## Step 7 — Verify
-
-1. Open the Railway-generated dashboard URL (e.g. `https://smart-hive-ai.up.railway.app`)
-2. Log in with `DEMO_PASSWORD`
-3. Check all sensor cards update every 5 seconds
-4. Enable AI Vision — queen bee bounding boxes should appear
-5. Enable Audio and click "Record 30 Seconds" — classification result should appear
-
----
-
-## Environment variables summary
-
-Generate a secure `SECRET_KEY`:
 ```bash
-python -c "import secrets; print(secrets.token_hex(32))"
+railway variables set MQTT_BROKER=mosquitto.railway.internal
+railway variables set MQTT_PORT=1883
+railway variables set DEMO_MODE=true
+railway variables set DEMO_PASSWORD=smarthive
+railway variables set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+railway variables set HF_TOKEN=<your-huggingface-token>
 ```
 
-| Service | Key variables |
-|---------|--------------|
-| dashboard | `MQTT_BROKER`, `SECRET_KEY`, `DEMO_PASSWORD`, `DEMO_MODE=true`, `PORT=5000` |
-| simulator | `MQTT_BROKER`, `MQTT_PORT` |
-| ml-audio | `MQTT_BROKER`, `DEMO_MODE=true` |
-| ml-vision | `MQTT_BROKER`, `VISION_CONFIDENCE_THRESHOLD=0.35` |
-| mosquitto | *(none)* |
+---
+
+## Step 4 — Add the mosquitto service
+
+In the Railway dashboard → **+ New** → **Docker Image**:
+- Image: `eclipse-mosquitto:2`
+- Name: `mosquitto`
+
+No environment variables needed. No public port (internal only).
+
+---
+
+## Step 5 — Add simulator, ml-audio, ml-vision services
+
+For each service: Railway dashboard → **+ New → GitHub Repo → harmandeeppal/smart-hive-ai → branch: main**
+
+Then set Dockerfile path: Service → Settings → Build → Dockerfile Path
+
+| Service name | Dockerfile path | Key env vars |
+|---|---|---|
+| `simulator` | `demo/Dockerfile.simulator` | `MQTT_BROKER=mosquitto.railway.internal` |
+| `ml-audio` | `Dockerfile.audio` | `MQTT_BROKER=mosquitto.railway.internal`, `DEMO_MODE=true`, `HF_TOKEN=<token>` |
+| `ml-vision` | `Dockerfile.vision` | `MQTT_BROKER=mosquitto.railway.internal`, `VISION_CONFIDENCE_THRESHOLD=0.35`, `HF_TOKEN=<token>` |
+
+---
+
+## Environment variables — complete reference
+
+| Variable | Services | Value |
+|---|---|---|
+| `MQTT_BROKER` | all except mosquitto | `mosquitto.railway.internal` |
+| `MQTT_PORT` | all except mosquitto | `1883` |
+| `DEMO_MODE` | dashboard, ml-audio | `true` |
+| `DEMO_PASSWORD` | dashboard | your chosen login password |
+| `SECRET_KEY` | dashboard | random 32-char hex string |
+| `HF_TOKEN` | ml-audio, ml-vision | your Hugging Face token (Read access) |
+| `VISION_CONFIDENCE_THRESHOLD` | ml-vision | `0.35` |
+
+---
+
+## Step 6 — Get the public URL
+
+Dashboard service → Settings → Networking → **Generate Domain**
+
+Your live demo will be at `https://smart-hive-ai-xxxx.up.railway.app`
+
+---
+
+## Verify the deployment
+
+1. Open the Railway-generated URL
+2. Log in with `DEMO_PASSWORD`
+3. Sensor cards should update every 5 seconds
+4. Enable **AI Vision** → queen bee bounding boxes appear
+5. Enable **Audio** → waveform animates with real audio signal
+6. Click **Record 30 Seconds & Analyze** → classification result appears
 
 ---
 
 ## Troubleshooting
 
-**Dashboard shows "MQTT disconnected"**
-→ Check `MQTT_BROKER=mosquitto.railway.internal` is set correctly.
-→ Ensure mosquitto service is running and healthy.
+**Dashboard blank / MQTT disconnected**
+→ mosquitto service must be running first.
+→ Confirm `MQTT_BROKER=mosquitto.railway.internal` (not `localhost`).
+
+**ml-vision build times out**
+→ PyTorch CPU wheel is ~800 MB — first build takes 10–15 min.
+→ Railway → Service Settings → increase build timeout to 20 min.
+
+**Models fail to download**
+→ HF repo is private — `HF_TOKEN` must be set on ml-audio and ml-vision.
+→ Token needs at least **Read** access to `harmandeeppal/smart-hive-ai`.
 
 **No telemetry data**
-→ Simulator service may be starting. Wait 30s, check simulator logs.
-
-**Vision detection never fires**
-→ Lower `VISION_CONFIDENCE_THRESHOLD` to `0.25`.
-→ Check ml-vision service logs — first startup downloads model weights (~6 MB).
-
-**Build timeout on ml-vision**
-→ PyTorch CPU wheel is ~800 MB. Railway may need 10–15 min on first build.
-→ Set the build timeout to 20 min in Railway service settings.
+→ Wait 30 s for simulator to start, then check its logs.
+→ Confirm `MQTT_BROKER` is identical across all services.

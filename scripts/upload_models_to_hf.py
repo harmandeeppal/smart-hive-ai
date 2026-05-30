@@ -13,11 +13,13 @@ What this uploads:
     models/audio_model.pkl   — scikit-learn beehive audio classifier
 """
 
+import os
+import subprocess
 import sys
 from pathlib import Path
-from huggingface_hub import HfApi, create_repo
+from huggingface_hub import HfApi, create_repo, login
 
-HF_REPO_ID = "harmandeeppal/smart-hive-ai-models"
+HF_REPO_ID = "harmandeeppal/smart-hive-ai"
 ROOT       = Path(__file__).resolve().parent.parent
 MODELS_DIR = ROOT / "models"
 
@@ -27,7 +29,29 @@ UPLOAD_FILES = [
 ]
 
 
+def _resolve_token() -> str | None:
+    """Try HF_TOKEN env var first, then read from the new `hf` CLI token store."""
+    if os.getenv("HF_TOKEN"):
+        return os.environ["HF_TOKEN"]
+    # The newer `hf` CLI (huggingface_hub >=0.26) stores tokens via `hf auth token`
+    try:
+        result = subprocess.run(
+            ["hf", "auth", "token"],
+            capture_output=True, text=True, timeout=10
+        )
+        token = result.stdout.strip()
+        if token and token.startswith("hf_"):
+            return token
+    except Exception:
+        pass
+    return None
+
+
 def main():
+    token = _resolve_token()
+    if token:
+        login(token=token, add_to_git_credential=False)
+
     api = HfApi()
 
     # Verify login
@@ -36,12 +60,13 @@ def main():
         print(f"Logged in as: {user['name']}")
     except Exception:
         print("ERROR: Not logged in to Hugging Face.")
-        print("Run:  huggingface-cli login")
+        print("Run:  hf auth login")
+        print("Or:   $env:HF_TOKEN = '<your-token>'  then re-run this script")
         sys.exit(1)
 
     # Create repo if it doesn't exist
     try:
-        create_repo(HF_REPO_ID, repo_type="model", exist_ok=True, private=False)
+        create_repo(HF_REPO_ID, repo_type="model", exist_ok=True, private=True)
         print(f"Repository ready: https://huggingface.co/{HF_REPO_ID}")
     except Exception as e:
         print(f"ERROR creating repo: {e}")

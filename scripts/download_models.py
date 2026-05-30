@@ -12,7 +12,7 @@ import os
 import sys
 from pathlib import Path
 
-HF_REPO_ID = "harmandeeppal/smart-hive-ai-models"
+HF_REPO_ID = "harmandeeppal/smart-hive-ai"
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 MODELS = [
@@ -31,7 +31,13 @@ def main():
         from huggingface_hub import hf_hub_download
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    token = os.getenv("HF_TOKEN")  # optional for public repos
+    token = os.getenv("HF_TOKEN")  # required — repo is private
+    if not token:
+        print("ERROR: HF_TOKEN environment variable not set.")
+        print("Set it with your Hugging Face token (Write access):")
+        print("  $env:HF_TOKEN = 'hf_xxx...'   (PowerShell)")
+        print("  export HF_TOKEN='hf_xxx...'   (bash)")
+        sys.exit(1)
 
     all_ok = True
     for filename in MODELS:
