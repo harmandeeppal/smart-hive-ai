@@ -1,0 +1,102 @@
+# docker-compose.demo.yml
+# Smart Hive AI — Local Demo Stack (no hardware required)
+#
+# Replaces the hardware edge app with the simulator service.
+# All other services (audio, vision, dashboard) run unchanged.
+#
+# Usage:
+#   bash demo/bootstrap.sh          (recommended — sets up conda env first)
+#   docker compose -f demo/docker-compose.demo.yml up --build
+
+version: '3.8'
+
+services:
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: demo-mosquitto
+    networks:
+      - demo-net
+    ports:
+      - "1883:1883"
+    volumes:
+      - ../mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  simulator:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile.simulator
+    image: smart-hive-simulator:latest
+    container_name: demo-simulator
+    networks:
+      - demo-net
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - TELEMETRY_INTERVAL=5
+      - FRAME_INTERVAL=3
+    volumes:
+      - ./sample_frames:/app/demo/sample_frames:ro
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  audio:
+    build:
+      context: ..
+      dockerfile: Dockerfile.audio
+    image: smart-hive-audio:latest
+    container_name: demo-audio
+    networks:
+      - demo-net
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - DEMO_MODE=true
+    volumes:
+      - ../models:/app/models:ro
+      - ../ml_audio_model:/app/ml_audio_model:ro
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  vision:
+    build:
+      context: ..
+      dockerfile: Dockerfile.vision
+    image: smart-hive-vision:latest
+    container_name: demo-vision
+    networks:
+      - demo-net
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    volumes:
+      - ../models:/app/models:ro
+      - ../ml_vision_model:/app/ml_vision_model:ro
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: Dockerfile.dashboard
+    image: smart-hive-dashboard:latest
+    container_name: demo-dashboard
+    networks:
+      - demo-net
+    ports:
+      - "5000:5000"
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - SECRET_KEY=${SECRET_KEY:-demo-secret-key}
+      - DEMO_PASSWORD=${DEMO_PASSWORD:-smarthive}
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+networks:
+  demo-net:
+    driver: bridge

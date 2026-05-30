@@ -9,7 +9,12 @@
 <body>
     <header>
         <h1>Smart Hive AI Dashboard</h1>
-        <div id="last-updated">Last Updated: --</div>
+        <div style="display:flex;align-items:center;gap:1rem;">
+            <div id="last-updated">Last Updated: --</div>
+            {% if demo_password_set %}
+            <a href="/logout" style="font-size:0.8rem;color:#8b949e;text-decoration:none;border:1px solid #30363d;padding:0.25rem 0.6rem;border-radius:4px;" title="End session and pause Railway services">Logout</a>
+            {% endif %}
+        </div>
     </header>
     <main class="dashboard-grid">
         <!-- Temperature Card -->
@@ -73,24 +78,25 @@
             <button class="toggle-btn" data-sensor="sound">Toggle: ON</button>
         </div>
 
-        <!-- AI Vision Card with TWO TOGGLES -->
+        <!-- AI Vision Card -->
         <div class="card" id="video-card">
             <h2>AI Vision and Live Video Feed</h2>
-            
-            <!-- Video Stream Image -->
-            <div class="video-container">
-                <img id="video-feed" src="{{ url_for('video_feed') }}" 
-                     width="100%" alt="Live video feed">
+
+            <!-- Video Stream with bounding box overlay -->
+            <div class="video-container" style="position:relative;">
+                <img id="video-feed" src="{{ url_for('video_feed') }}"
+                     width="100%" style="display:block;" alt="Live video feed">
+                <canvas id="detection-overlay"
+                        style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
             </div>
-            
+
             <!-- Status Display -->
             <div class="ai-status">
                 <span>🎥 Video: <strong id="video-status-text">ON</strong></span>
                 <span>🤖 AI Vision: <strong id="ai-vision-status-text">OFF</strong></span>
                 <span>Last Detection: <strong id="ai-snapshot-time">--</strong></span>
             </div>
-            
-            <!-- TWO SEPARATE TOGGLE BUTTONS -->
+
             <div class="video-controls">
                 <button class="toggle-btn video-toggle" id="video-toggle-btn" data-state="on">
                     📹 Video: <span class="toggle-state">ON</span>
@@ -101,10 +107,10 @@
             </div>
         </div>
 
-        <!-- AI Audio Analysis Card (NEW - Enhanced with Waveform) -->
+        <!-- AI Audio Analysis Card -->
         <div class="card" id="audio-ml-card">
             <h2>🎤 AI Audio Analysis - Live Monitoring</h2>
-            
+
             <!-- Audio Waveform Visualization -->
             <div class="audio-visualizer-container">
                 <canvas id="audio-waveform" width="600" height="120"></canvas>
@@ -145,25 +151,27 @@
             <!-- Recording Controls -->
             <div class="audio-ml-controls">
                 <button id="record-audio-btn" class="record-btn">
-                    🎤 Record 1 Minute & Analyze
+                    🎤 Record 30 Seconds &amp; Analyze
                 </button>
                 <div id="recording-progress" class="recording-progress" style="display: none;">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
-                    <span id="progress-text">Recording: 0s / 60s</span>
+                    <span id="progress-text">Recording: 0s / 30s</span>
                 </div>
             </div>
-            
+
+            <!-- Audio toggle -->
+            <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+                <button class="toggle-btn" id="audio-toggle-btn" data-state="on"
+                        style="flex:1;">🎤 Audio: ON</button>
+            </div>
+
             <p class="action-text">Last Analysis: <span id="audio-last-analysis">Never</span></p>
         </div>
     </main>
 
-    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <!-- Note: Chart.js is no longer needed for this design -->
-    
-    <!-- Our Custom JavaScript -->
     <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

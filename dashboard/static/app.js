@@ -1,585 +1,473 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
-    // --- STATE MANAGEMENT ---
-    const sensorStates = { temperature: true, humidity: true, vibration: true, sound: true, vision: true };
+    // --- STATE ---
+    const sensorStates = { temperature: true, humidity: true, vibration: true, sound: true, vision: true, audio: true };
     let vibrationHistory = [];
 
-    // --- DOM ELEMENTS ---
+    // --- DOM ---
     const elements = {
         lastUpdated: document.getElementById('last-updated'),
-        temp: { val: document.getElementById('temp-value'), bar: document.querySelector('#temp-bar'), status: document.getElementById('temp-status'), action: document.getElementById('temp-action') },
-        hum: { val: document.getElementById('hum-value'), bar: document.querySelector('#hum-bar'), status: document.getElementById('hum-status'), action: document.getElementById('hum-action') },
-        vib: { val: document.getElementById('vib-value'), magnitude: document.querySelector('#vib-magnitude'), trend: document.getElementById('vib-trend'), status: document.getElementById('vib-status'), action: document.getElementById('vib-action') },
+        temp:  { val: document.getElementById('temp-value'),  bar: document.querySelector('#temp-bar'),  status: document.getElementById('temp-status'),  action: document.getElementById('temp-action') },
+        hum:   { val: document.getElementById('hum-value'),   bar: document.querySelector('#hum-bar'),   status: document.getElementById('hum-status'),   action: document.getElementById('hum-action') },
+        vib:   { val: document.getElementById('vib-value'),   magnitude: document.querySelector('#vib-magnitude'), trend: document.getElementById('vib-trend'), status: document.getElementById('vib-status'), action: document.getElementById('vib-action') },
         sound: { val: document.getElementById('sound-value'), volume: document.querySelector('#sound-volume'), frequency: document.querySelector('#sound-frequency'), status: document.getElementById('sound-status'), action: document.getElementById('sound-action') },
-        ai: { status: document.getElementById('ai-status-text'), snapshotTime: document.getElementById('ai-snapshot-time') }
+        ai:    { snapshotTime: document.getElementById('ai-snapshot-time') }
     };
 
-    // --- SOCKET.IO LISTENERS ---
-    socket.on('connect', () => console.log('Connected to dashboard server!'));
+    // --- HELPERS ---
+    function parseTimestamp(ts) {
+        // Handles both ISO strings ("2026-05-29T20:38:14") and Unix seconds (1780043896)
+        if (typeof ts === 'string') return new Date(ts);
+        return new Date(ts * 1000);
+    }
+
+    function toNZTime(date, opts) {
+        return date.toLocaleString('en-NZ', { timeZone: 'Pacific/Auckland', ...opts });
+    }
+
+    function generateSparkline(data) {
+        const chars = [' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+        if (data.length < 2) return '';
+        const max = Math.max(...data);
+        return data.map(d => chars[Math.floor((d / (max || 1)) * (chars.length - 1))]).join('');
+    }
+
+    // --- SOCKET LISTENERS ---
+    socket.on('connect', () => console.log('Connected to dashboard'));
 
     socket.on('telemetry_update', data => {
-        console.log('Received telemetry:', data);
         updateTimestamp(data.timestamp);
-        
-        // Only update if sensor is enabled
-        if (sensorStates.temperature && data.temperature !== undefined) {
-            updateTemperature(data.temperature);
-        }
-        if (sensorStates.humidity && data.humidity !== undefined) {
-            updateHumidity(data.humidity);
-        }
-        if (sensorStates.vibration && data.vibration_rms !== undefined) {
-            updateVibration(data.vibration_rms);
-        }
-        if (sensorStates.sound && (data.sound_db !== undefined || data.sound_freq !== undefined)) {
-            updateSound(data.sound_db, data.sound_freq);
+        if (sensorStates.temperature && data.temperature !== undefined) updateTemperature(data.temperature);
+        if (sensorStates.humidity    && data.humidity    !== undefined) updateHumidity(data.humidity);
+        // Accept either vibration_rms (hardware) or vibration (simulator)
+        const vib = data.vibration_rms !== undefined ? data.vibration_rms : data.vibration;
+        if (sensorStates.vibration   && vib            !== undefined) updateVibration(vib);
+        if (sensorStates.sound       && data.sound_db  !== undefined) updateSound(data.sound_db, data.sound_freq);
+        if (data.sound_db !== undefined) {
+            currentSoundDb = data.sound_db;
+            const dbEl = document.getElementById('audio-db-value');
+            if (dbEl && sensorStates.audio) dbEl.textContent = `${data.sound_db.toFixed(1)} dB`;
         }
     });
 
+    // Vision ML results (from YOLO service via hive/vision/detection)
+    socket.on('vision_ml_update', data => {
+        if (sensorStates.vision) updateVisionDetection(data);
+    });
+
+    // Legacy vision update (from edge-app)
     socket.on('vision_update', data => {
-        console.log('Received vision data:', data);
-        // Only update if vision is enabled
-        if (sensorStates.vision) {
-            updateAiStatus(data);
-        }
+        if (sensorStates.vision) updateVisionDetection(data);
     });
 
-    socket.on('audio_ml_update', data => {
-        console.log('Received audio ML data:', data);
-        updateAudioMLStatus(data);
-    });
+    socket.on('audio_ml_update', data => updateAudioMLStatus(data));
+    socket.on('recording_started', data => startRecordingProgress(data.duration));
+    socket.on('video_status',     data => syncVideoToggle(data));
+    socket.on('ai_vision_status', data => syncAiVisionToggle(data));
 
-    socket.on('recording_started', data => {
-        console.log('Recording started:', data);
-        startRecordingProgress(data.duration);
-    });
-
-    // --- UI UPDATE FUNCTIONS ---
+    // --- TIMESTAMP ---
     function updateTimestamp(timestamp) {
-        const nzTime = new Date(timestamp * 1000).toLocaleString('en-NZ', {
-            timeZone: 'Pacific/Auckland',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
+        const date = parseTimestamp(timestamp);
+        if (isNaN(date)) { elements.lastUpdated.textContent = 'Last Updated: --'; return; }
+        elements.lastUpdated.textContent = 'Last Updated: ' + toNZTime(date, {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
         });
-        elements.lastUpdated.textContent = `Last Updated: ${nzTime} NZDT/NZST`;
     }
 
+    // --- TEMPERATURE ---
     function updateTemperature(temp) {
-        if (temp === undefined || temp === null) return;
         elements.temp.val.textContent = `${temp.toFixed(1)} °C`;
-        let status, action, percent;
-        
-        // Bar range: 28°C to 41°C (optimal 33-36°C ±5°C)
-        const TEMP_MIN = 28;
-        const TEMP_MAX = 41;
-        const TEMP_OPTIMAL_MIN = 33;
-        const TEMP_OPTIMAL_MAX = 36;
-        
-        if (temp < TEMP_OPTIMAL_MIN) { 
-            status = '❄️ Too Cold'; 
-            action = 'LOW TEMP ALERT: Check food stores (honey/pollen). Install entrance reducer. Consider external insulation.'; 
-        } else if (temp > TEMP_OPTIMAL_MAX) { 
-            status = '☀️ Too Hot'; 
-            action = 'HIGH TEMP ALERT: Open entrance fully. Prop outer cover for ventilation. Provide shade cloth.'; 
-        } else { 
-            status = '✓ Optimal'; 
-            action = 'None required.'; 
-        }
-        
-        // Calculate position on bar (0-100%)
-        percent = ((temp - TEMP_MIN) / (TEMP_MAX - TEMP_MIN)) * 100;
-        percent = Math.min(100, Math.max(0, percent));
-        
+        const MIN = 28, MAX = 41, OPT_MIN = 33, OPT_MAX = 36;
+        let status, action;
+        if (temp < OPT_MIN)      { status = '❄️ Too Cold'; action = 'LOW TEMP ALERT: Check food stores. Install entrance reducer. Consider insulation.'; }
+        else if (temp > OPT_MAX) { status = '☀️ Too Hot';  action = 'HIGH TEMP ALERT: Open entrance fully. Provide shade cloth and ventilation.'; }
+        else                     { status = '✓ Optimal';   action = 'None required.'; }
         elements.temp.status.textContent = status;
         elements.temp.action.textContent = action;
-        elements.temp.bar.style.setProperty('--marker-pos', `${percent}%`);
+        const pct = Math.min(100, Math.max(0, ((temp - MIN) / (MAX - MIN)) * 100));
+        elements.temp.bar.style.setProperty('--marker-pos', `${pct}%`);
     }
 
+    // --- HUMIDITY ---
     function updateHumidity(hum) {
-        if (hum === undefined || hum === null) return;
         elements.hum.val.textContent = `${hum.toFixed(1)} %`;
-        let status, action, percent;
-        
-        // Bar range: 40% to 80% (optimal 50-70% ±10%)
-        const HUM_MIN = 40;
-        const HUM_MAX = 80;
-        const HUM_OPTIMAL_MIN = 50;
-        const HUM_OPTIMAL_MAX = 70;
-        
-        if (hum < HUM_OPTIMAL_MIN) { 
-            status = '💦 Too Dry'; 
-            action = 'LOW HUMIDITY ALERT: Provide water source with landing spots (pebbles). Check syrup concentration.'; 
-        } else if (hum > HUM_OPTIMAL_MAX) { 
-            status = '💧 Too Wet'; 
-            action = 'HIGH HUMIDITY ALERT: Clear all vents. Check roof/bottom board for water trapping. Improve ventilation.'; 
-        } else { 
-            status = '✓ Optimal'; 
-            action = 'None required.'; 
-        }
-        
-        // Calculate position on bar (0-100%)
-        percent = ((hum - HUM_MIN) / (HUM_MAX - HUM_MIN)) * 100;
-        percent = Math.min(100, Math.max(0, percent));
-        
+        const MIN = 40, MAX = 80, OPT_MIN = 50, OPT_MAX = 70;
+        let status, action;
+        if (hum < OPT_MIN)      { status = '💦 Too Dry'; action = 'LOW HUMIDITY: Provide water source. Check syrup concentration.'; }
+        else if (hum > OPT_MAX) { status = '💧 Too Wet'; action = 'HIGH HUMIDITY: Clear all vents. Improve bottom-board ventilation.'; }
+        else                    { status = '✓ Optimal';  action = 'None required.'; }
         elements.hum.status.textContent = status;
         elements.hum.action.textContent = action;
-        elements.hum.bar.style.setProperty('--marker-pos', `${percent}%`);
+        const pct = Math.min(100, Math.max(0, ((hum - MIN) / (MAX - MIN)) * 100));
+        elements.hum.bar.style.setProperty('--marker-pos', `${pct}%`);
     }
 
+    // --- VIBRATION ---
     function updateVibration(rms) {
-        if (rms === undefined || rms === null) return;
         elements.vib.val.textContent = `${rms.toFixed(4)} RMS`;
         let status, action;
-        if (rms > 0.15) {
-            status = '🚨 Agitation Alert'; 
-            action = 'Hive disturbed or under attack. Check visual feed for pests. Avoid opening hive for 2+ hours.'; 
-        } else if (rms < 0.02) {
-            status = '🛑 Low Activity Alert';
-            action = 'Possible cluster immobilization. Check weather history. Inspect for weakness or pesticide exposure.';
-        } else {
-            status = '✓ Normal Activity';
-            action = 'None required.';
-        }
+        if (rms > 0.15)     { status = '🚨 Agitation Alert';   action = 'Hive disturbed or under attack. Avoid opening for 2+ hours.'; }
+        else if (rms < 0.02){ status = '🛑 Low Activity Alert'; action = 'Possible cluster issue. Inspect for weakness.'; }
+        else                { status = '✓ Normal Activity';     action = 'None required.'; }
         elements.vib.status.textContent = status;
         elements.vib.action.textContent = action;
         elements.vib.magnitude.style.setProperty('--magnitude', `${Math.min(100, (rms / 0.3) * 100)}%`);
-        
         vibrationHistory.push(rms);
         if (vibrationHistory.length > 10) vibrationHistory.shift();
         elements.vib.trend.textContent = generateSparkline(vibrationHistory);
     }
 
+    // --- SOUND ---
     function updateSound(db, freq) {
         if (db === undefined || db === null) return;
-        
         elements.sound.val.textContent = `${db.toFixed(1)} dB`;
-        
-        // Volume bar (40-70 dB range for normal hive sounds)
-        const volumePercent = Math.min(100, Math.max(0, ((db - 40) / 30) * 100));
-        elements.sound.volume.style.setProperty('--magnitude', `${volumePercent}%`);
-        
-        // Frequency bar (200-600 Hz range for bee sounds)
+        const volPct = Math.min(100, Math.max(0, ((db - 40) / 30) * 100));
+        elements.sound.volume.style.setProperty('--magnitude', `${volPct}%`);
         if (freq !== undefined && freq !== null) {
-            const freqPercent = Math.min(100, Math.max(0, ((freq - 200) / 400) * 100));
-            elements.sound.frequency.style.setProperty('--magnitude', `${freqPercent}%`);
-            
-            // Intelligent status and action based on frequency analysis
-            if (freq >= 450 && freq <= 600) {
-                // Swarming signals (piping/quacking ~500Hz)
-                elements.sound.status.textContent = '🏃 SWARM PREDICTION ALERT';
-                elements.sound.action.textContent = 'Imminent swarming. Schedule colony split immediately to relieve congestion during swarming season.';
-            } else if (freq >= 350 && freq < 450) {
-                // Queenless roar (high-pitched distressed sound)
-                elements.sound.status.textContent = '👑 QUEEN STATUS ALERT';
-                elements.sound.action.textContent = 'Abnormal sound detected. Check brood frames for eggs/larvae. Introduce new queen or frame of young brood if queenless.';
-            } else if (freq < 150 && db < 42) {
-                // Sudden silence (dramatic drop in acoustic energy)
-                elements.sound.status.textContent = '💀 DISTRESS/MORTALITY ALERT';
-                elements.sound.action.textContent = 'Sudden silence. Check for local pesticide use. Inspect for dead/paralyzed bees at entrance.';
-            } else if (freq >= 200 && freq < 350) {
-                // Normal healthy hum (200-300 Hz)
-                elements.sound.status.textContent = '✓ Healthy Hum';
-                elements.sound.action.textContent = 'None required.';
-            } else {
-                // Edge cases
-                elements.sound.status.textContent = 'Monitoring';
-                elements.sound.action.textContent = 'Continue observation.';
-            }
+            const freqPct = Math.min(100, Math.max(0, ((freq - 200) / 400) * 100));
+            elements.sound.frequency.style.setProperty('--magnitude', `${freqPct}%`);
+            let status, action;
+            if (freq >= 450)                     { status = '🏃 SWARM PREDICTION'; action = 'Imminent swarming. Schedule colony split.'; }
+            else if (freq >= 350)                { status = '👑 QUEEN STATUS ALERT'; action = 'Abnormal sound. Check for eggs/larvae.'; }
+            else if (freq < 150 && db < 42)      { status = '💀 DISTRESS ALERT';    action = 'Sudden silence. Check for pesticide exposure.'; }
+            else                                 { status = '✓ Healthy Hum';         action = 'None required.'; }
+            elements.sound.status.textContent = status;
+            elements.sound.action.textContent = action;
         } else {
-            // Fallback if frequency is not available
             elements.sound.status.textContent = 'Volume Only';
             elements.sound.action.textContent = 'Frequency analysis unavailable.';
         }
     }
 
-    function updateAiStatus(data) {
-        if (data.queen_detected) {
-            elements.ai.status.textContent = `QUEEN DETECTED (${(data.confidence * 100).toFixed(0)}%)`;
-            elements.ai.status.classList.add('detected');
-            
-            const nzTime = new Date(data.timestamp * 1000).toLocaleString('en-NZ', {
-                timeZone: 'Pacific/Auckland',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            elements.ai.snapshotTime.textContent = nzTime;
-            
-            setTimeout(() => elements.ai.status.classList.remove('detected'), 5000);
-        } else {
-            elements.ai.status.textContent = 'Actively Scanning';
+    // --- VISION DETECTION + BOUNDING BOXES ---
+    const detectionOverlay = document.getElementById('detection-overlay');
+    const overlayCtx = detectionOverlay ? detectionOverlay.getContext('2d') : null;
+    let boxClearTimer = null;
+
+    function drawBoundingBoxes(boxes, confidence) {
+        if (!overlayCtx || !detectionOverlay) return;
+        const W = detectionOverlay.offsetWidth  || detectionOverlay.width;
+        const H = detectionOverlay.offsetHeight || detectionOverlay.height;
+        detectionOverlay.width  = W;
+        detectionOverlay.height = H;
+        overlayCtx.clearRect(0, 0, W, H);
+        const scaleX = W / 640, scaleY = H / 480;
+        boxes.forEach(box => {
+            const [x1, y1, x2, y2] = box;
+            const bx = x1 * scaleX, by = y1 * scaleY, bw = (x2 - x1) * scaleX, bh = (y2 - y1) * scaleY;
+            overlayCtx.strokeStyle = '#ff4444';
+            overlayCtx.lineWidth = 2;
+            overlayCtx.strokeRect(bx, by, bw, bh);
+            overlayCtx.fillStyle = 'rgba(255,68,68,0.7)';
+            overlayCtx.fillRect(bx, by - 18, 110, 18);
+            overlayCtx.fillStyle = '#fff';
+            overlayCtx.font = 'bold 12px sans-serif';
+            overlayCtx.fillText(`👑 Queen ${(confidence * 100).toFixed(0)}%`, bx + 4, by - 4);
+        });
+        if (boxClearTimer) clearTimeout(boxClearTimer);
+        boxClearTimer = setTimeout(() => overlayCtx && overlayCtx.clearRect(0, 0, detectionOverlay.width, detectionOverlay.height), 3000);
+    }
+
+    function updateVisionDetection(data) {
+        // Handle both 'detected' (YOLO service) and 'queen_detected' (legacy edge-app)
+        const detected    = data.detected ?? data.queen_detected ?? false;
+        const confidence  = data.confidence ?? 0;
+        const boxes       = data.boxes ?? [];
+        const snapshotEl  = elements.ai.snapshotTime;
+
+        if (detected) {
+            if (boxes.length > 0) drawBoundingBoxes(boxes, confidence);
+            const t = parseTimestamp(data.timestamp);
+            snapshotEl.textContent = isNaN(t) ? 'Just now' : toNZTime(t, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         }
     }
 
+    // --- AUDIO ML STATUS ---
     function updateAudioMLStatus(data) {
-        const classification = data.results?.classification || data.classification || 'Unknown';
-        const confidence = data.results?.confidence || data.confidence || 0;
-        
-        // Update display elements
-        document.getElementById('audio-classification').textContent = classification;
-        document.getElementById('audio-confidence').textContent = `${(confidence * 100).toFixed(1)}%`;
-        
-        // Update status based on classification
-        const statusEl = document.getElementById('audio-ml-status');
-        const valueEl = document.getElementById('audio-ml-value');
-        
-        if (classification.toLowerCase().includes('queen')) {
-            statusEl.textContent = '👑 Queen Detected';
-            valueEl.textContent = 'Queen bee sounds identified';
-        } else if (classification.toLowerCase().includes('queenless')) {
-            statusEl.textContent = '⚠️ Queenless Colony';
-            valueEl.textContent = 'No queen bee sounds detected';
-        } else {
-            statusEl.textContent = 'Analysis Complete';
-            valueEl.textContent = classification;
-        }
-        
-        // Update last analysis time
-        const nzTime = new Date().toLocaleString('en-NZ', {
-            timeZone: 'Pacific/Auckland',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-        document.getElementById('audio-last-analysis').textContent = nzTime;
-        
-        // Hide progress bar
+        const classification = data.results?.classification ?? data.classification ?? 'Unknown';
+        const confidence     = data.results?.confidence     ?? data.confidence     ?? 0;
+
+        const clEl  = document.getElementById('audio-classification');
+        const cfEl  = document.getElementById('audio-confidence');
+        const stEl  = document.getElementById('audio-ml-status');
+        const laEl  = document.getElementById('audio-last-analysis');
+
+        // Human-readable label
+        const label = classification === 'queen_present' ? '👑 Queen Present'
+                    : classification === 'queen_absent'  ? 'Queen Absent'
+                    : classification;
+        clEl.textContent = label;
+        cfEl.textContent = `${(confidence * 100).toFixed(1)}%`;
+        stEl.textContent = classification === 'queen_present' ? '👑 Queen Detected' : 'Analysis Complete';
+
+        const now = new Date();
+        laEl.textContent = toNZTime(now, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+
         document.getElementById('recording-progress').style.display = 'none';
         document.getElementById('record-audio-btn').disabled = false;
     }
 
+    // --- RECORDING PROGRESS ---
     function startRecordingProgress(duration) {
-        const progressContainer = document.getElementById('recording-progress');
-        const progressFill = document.getElementById('progress-fill');
-        const progressText = document.getElementById('progress-text');
-        const recordBtn = document.getElementById('record-audio-btn');
-        
-        progressContainer.style.display = 'block';
-        recordBtn.disabled = true;
-        
+        const prog = document.getElementById('recording-progress');
+        const fill = document.getElementById('progress-fill');
+        const text = document.getElementById('progress-text');
+        const btn  = document.getElementById('record-audio-btn');
+        prog.style.display = 'block';
+        btn.disabled = true;
         let elapsed = 0;
-        const interval = setInterval(() => {
+        const iv = setInterval(() => {
             elapsed++;
-            const percent = (elapsed / duration) * 100;
-            progressFill.style.width = `${percent}%`;
-            progressText.textContent = `Recording: ${elapsed}s / ${duration}s`;
-            
-            if (elapsed >= duration) {
-                clearInterval(interval);
-                progressText.textContent = 'Processing audio...';
-            }
+            fill.style.width = `${(elapsed / duration) * 100}%`;
+            text.textContent = `Recording: ${elapsed}s / ${duration}s`;
+            if (elapsed >= duration) { clearInterval(iv); text.textContent = 'Processing audio...'; }
         }, 1000);
     }
 
-    // --- HELPER FUNCTIONS ---
-    function generateSparkline(data) {
-        const sparklineChars = [' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
-        if (data.length < 2) return '';
-        const max = Math.max(...data);
-        return data.map(d => sparklineChars[Math.floor((d / (max || 1)) * (sparklineChars.length - 1))]).join('');
+    // --- CLEAR HELPERS (called when sensor is toggled off) ---
+    function clearTemperature() {
+        elements.temp.val.textContent = '-- °C';
+        elements.temp.status.textContent = '--';
+        elements.temp.action.textContent = '--';
+        elements.temp.bar.style.setProperty('--marker-pos', '0%');
     }
+    function clearHumidity() {
+        elements.hum.val.textContent = '-- %';
+        elements.hum.status.textContent = '--';
+        elements.hum.action.textContent = '--';
+        elements.hum.bar.style.setProperty('--marker-pos', '0%');
+    }
+    function clearVibration() {
+        elements.vib.val.textContent = '-- RMS';
+        elements.vib.status.textContent = '--';
+        elements.vib.action.textContent = '--';
+        elements.vib.magnitude.style.setProperty('--magnitude', '0%');
+        elements.vib.trend.textContent = '--';
+        vibrationHistory = [];
+    }
+    function clearSound() {
+        elements.sound.val.textContent = '-- dB';
+        elements.sound.status.textContent = '--';
+        elements.sound.action.textContent = '--';
+        elements.sound.volume.style.setProperty('--magnitude', '0%');
+        elements.sound.frequency.style.setProperty('--magnitude', '0%');
+    }
+    const clearFns = { temperature: clearTemperature, humidity: clearHumidity, vibration: clearVibration, sound: clearSound };
 
-    // --- TOGGLE BUTTONS ---
-    document.querySelectorAll('.toggle-btn').forEach(button => {
-        const sensor = button.dataset.sensor;
-        updateButtonAppearance(button, sensor);
-
-        button.addEventListener('click', () => {
+    // --- TOGGLE BUTTONS (sensor cards) ---
+    document.querySelectorAll('.toggle-btn[data-sensor]').forEach(btn => {
+        const sensor = btn.dataset.sensor;
+        btn.addEventListener('click', () => {
             sensorStates[sensor] = !sensorStates[sensor];
-            const newState = sensorStates[sensor] ? 'on' : 'off';
-            socket.emit('toggle_sensor', { sensor: sensor, state: newState });
-            updateButtonAppearance(button, sensor);
+            const state = sensorStates[sensor] ? 'on' : 'off';
+            socket.emit('toggle_sensor', { sensor, state });
+            btn.textContent = `Toggle: ${state.toUpperCase()}`;
+            sensorStates[sensor] ? btn.classList.remove('off') : btn.classList.add('off');
+            if (!sensorStates[sensor] && clearFns[sensor]) clearFns[sensor]();
         });
     });
 
-    function updateButtonAppearance(button, sensor) {
-        const state = sensorStates[sensor];
-        button.textContent = `Toggle: ${state ? 'ON' : 'OFF'}`;
-        state ? button.classList.remove('off') : button.classList.add('off');
-    }
-
-    // --- VIDEO AND AI VISION TOGGLE HANDLERS ---
-    const videoToggleBtn = document.getElementById('video-toggle-btn');
+    // --- VIDEO TOGGLE ---
+    const videoToggleBtn  = document.getElementById('video-toggle-btn');
     const aiVisionToggleBtn = document.getElementById('ai-vision-toggle-btn');
     const videoFeed = document.getElementById('video-feed');
 
+    function setVideoOff() {
+        if (videoFeed) { videoFeed.style.display = 'none'; }
+        // Show black placeholder
+        const container = videoFeed ? videoFeed.parentElement : null;
+        if (container && !document.getElementById('video-blank')) {
+            const blank = document.createElement('div');
+            blank.id = 'video-blank';
+            blank.style.cssText = 'width:100%;background:#000;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:#444;font-size:0.9rem;';
+            blank.textContent = 'Video OFF';
+            container.insertBefore(blank, videoFeed);
+        }
+        // Force AI Vision off too
+        setAiVisionOff();
+    }
+
+    function setVideoOn() {
+        if (videoFeed) { videoFeed.style.display = 'block'; }
+        const blank = document.getElementById('video-blank');
+        if (blank) blank.remove();
+    }
+
+    function setAiVisionOff() {
+        if (!aiVisionToggleBtn) return;
+        aiVisionToggleBtn.dataset.state = 'off';
+        aiVisionToggleBtn.querySelector('.toggle-state').textContent = 'OFF';
+        document.getElementById('ai-vision-status-text').textContent = 'OFF';
+        aiVisionToggleBtn.classList.remove('ai-active');
+        aiVisionToggleBtn.disabled = true;
+        // Clear any drawn bounding boxes
+        if (overlayCtx && detectionOverlay) overlayCtx.clearRect(0, 0, detectionOverlay.width, detectionOverlay.height);
+        elements.ai.snapshotTime.textContent = '--';
+        socket.emit('toggle_ml_sensor', { sensor: 'ml_vision', state: 'off' });
+    }
+
     if (videoToggleBtn) {
         videoToggleBtn.addEventListener('click', () => {
-            const currentState = videoToggleBtn.dataset.state;
-            const newState = currentState === 'on' ? 'off' : 'on';
-            
-            // Send MQTT message
-            fetch('/mqtt/publish', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    topic: 'hive/control/video',
-                    message: JSON.stringify({state: newState})
-                })
-            });
-            
-            // Update button UI
+            const newState = videoToggleBtn.dataset.state === 'on' ? 'off' : 'on';
             videoToggleBtn.dataset.state = newState;
             videoToggleBtn.querySelector('.toggle-state').textContent = newState.toUpperCase();
             document.getElementById('video-status-text').textContent = newState.toUpperCase();
-            
-            // Visual feedback on video feed
-            if (videoFeed) {
-                if (newState === 'off') {
-                    videoFeed.style.opacity = '0.3';
-                    videoFeed.style.filter = 'grayscale(100%)';
-                } else {
-                    videoFeed.style.opacity = '1';
-                    videoFeed.style.filter = 'none';
-                }
-            }
+            socket.emit('toggle_ml_sensor', { sensor: 'video', state: newState });
+            if (newState === 'off') { setVideoOff(); }
+            else { setVideoOn(); if (aiVisionToggleBtn) aiVisionToggleBtn.disabled = false; }
         });
     }
 
     if (aiVisionToggleBtn) {
         aiVisionToggleBtn.addEventListener('click', () => {
-            const currentState = aiVisionToggleBtn.dataset.state;
-            const newState = currentState === 'on' ? 'off' : 'on';
-            
-            // Send MQTT message
-            fetch('/mqtt/publish', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    topic: 'hive/control/ai_vision',
-                    message: JSON.stringify({state: newState})
-                })
-            });
-            
-            // Update button UI
+            if (videoToggleBtn && videoToggleBtn.dataset.state === 'off') return; // can't enable when video is off
+            const newState = aiVisionToggleBtn.dataset.state === 'on' ? 'off' : 'on';
             aiVisionToggleBtn.dataset.state = newState;
             aiVisionToggleBtn.querySelector('.toggle-state').textContent = newState.toUpperCase();
             document.getElementById('ai-vision-status-text').textContent = newState.toUpperCase();
-            
-            // Change button appearance
-            if (newState === 'on') {
-                aiVisionToggleBtn.classList.add('ai-active');
-            } else {
+            socket.emit('toggle_ml_sensor', { sensor: 'ml_vision', state: newState });
+            if (newState === 'on') { aiVisionToggleBtn.classList.add('ai-active'); }
+            else {
                 aiVisionToggleBtn.classList.remove('ai-active');
+                if (overlayCtx && detectionOverlay) overlayCtx.clearRect(0, 0, detectionOverlay.width, detectionOverlay.height);
+                elements.ai.snapshotTime.textContent = '--';
             }
         });
     }
 
-    // Listen for status updates from edge-app
-    socket.on('video_status', data => {
-        if (videoToggleBtn) {
-            const status = data.enabled ? 'ON' : 'OFF';
-            const state = data.enabled ? 'on' : 'off';
-            document.getElementById('video-status-text').textContent = status;
-            videoToggleBtn.dataset.state = state;
-            videoToggleBtn.querySelector('.toggle-state').textContent = status;
-        }
-    });
+    function syncVideoToggle(data) {
+        if (!videoToggleBtn) return;
+        const state = data.enabled ? 'on' : 'off';
+        videoToggleBtn.dataset.state = state;
+        videoToggleBtn.querySelector('.toggle-state').textContent = state.toUpperCase();
+        document.getElementById('video-status-text').textContent = state.toUpperCase();
+    }
 
-    socket.on('ai_vision_status', data => {
-        if (aiVisionToggleBtn) {
-            const status = data.enabled ? 'ON' : 'OFF';
-            const state = data.enabled ? 'on' : 'off';
-            document.getElementById('ai-vision-status-text').textContent = status;
-            aiVisionToggleBtn.dataset.state = state;
-            aiVisionToggleBtn.querySelector('.toggle-state').textContent = status;
-            if (data.enabled) {
-                aiVisionToggleBtn.classList.add('ai-active');
+    function syncAiVisionToggle(data) {
+        if (!aiVisionToggleBtn) return;
+        const state = data.enabled ? 'on' : 'off';
+        aiVisionToggleBtn.dataset.state = state;
+        aiVisionToggleBtn.querySelector('.toggle-state').textContent = state.toUpperCase();
+        document.getElementById('ai-vision-status-text').textContent = state.toUpperCase();
+        data.enabled ? aiVisionToggleBtn.classList.add('ai-active') : aiVisionToggleBtn.classList.remove('ai-active');
+    }
+
+    // --- AUDIO TOGGLE ---
+    const audioToggleBtn  = document.getElementById('audio-toggle-btn');
+    const recordAudioBtn  = document.getElementById('record-audio-btn');
+
+    if (audioToggleBtn) {
+        audioToggleBtn.addEventListener('click', () => {
+            const newState = audioToggleBtn.dataset.state === 'on' ? 'off' : 'on';
+            audioToggleBtn.dataset.state = newState;
+            audioToggleBtn.textContent = `🎤 Audio: ${newState.toUpperCase()}`;
+            sensorStates.audio = newState === 'on';
+            newState === 'on' ? audioToggleBtn.classList.remove('off') : audioToggleBtn.classList.add('off');
+            // Disable record button and clear display when audio is OFF
+            if (newState === 'off') {
+                flatlineWaveform();
+                if (recordAudioBtn) { recordAudioBtn.disabled = true; recordAudioBtn.style.opacity = '0.4'; }
+                document.getElementById('audio-classification').textContent = '--';
+                document.getElementById('audio-confidence').textContent = '--';
+                document.getElementById('audio-ml-status').textContent = 'Paused';
+                document.getElementById('audio-db-value').textContent = '-- dB';
             } else {
-                aiVisionToggleBtn.classList.remove('ai-active');
+                if (recordAudioBtn) { recordAudioBtn.disabled = false; recordAudioBtn.style.opacity = '1'; }
+                document.getElementById('audio-ml-status').textContent = 'Waiting...';
             }
-        }
-    });
+            socket.emit('toggle_ml_sensor', { sensor: 'audio', state: newState });
+        });
+    }
 
-    // --- AUDIO WAVEFORM VISUALIZATION ---
+    // --- AUDIO WAVEFORM (real samples from audio service) ---
     const audioCanvas = document.getElementById('audio-waveform');
-    const audioCtx = audioCanvas ? audioCanvas.getContext('2d') : null;
-    let waveformData = new Array(100).fill(0); // 100 data points
-    let animationFrameId = null;
+    const audioCtx    = audioCanvas ? audioCanvas.getContext('2d') : null;
+    const WAVEFORM_LEN = 240;            // rolling buffer — ~2 seconds of 0.5s packets × 60 pts
+    let waveformData   = new Array(WAVEFORM_LEN).fill(0);
+    let currentSoundDb = 0;
 
     function drawWaveform() {
         if (!audioCtx || !audioCanvas) return;
-
-        const width = audioCanvas.width;
-        const height = audioCanvas.height;
-        const centerY = height / 2;
-
-        // Clear canvas
-        audioCtx.fillStyle = '#0f0f1e';
-        audioCtx.fillRect(0, 0, width, height);
-
-        // Draw grid lines
-        audioCtx.strokeStyle = '#1a1a3e';
-        audioCtx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const y = (height / 4) * i;
-            audioCtx.beginPath();
-            audioCtx.moveTo(0, y);
-            audioCtx.lineTo(width, y);
-            audioCtx.stroke();
-        }
-
-        // Draw waveform
-        audioCtx.strokeStyle = '#00ff88';
-        audioCtx.lineWidth = 2;
+        const W = audioCanvas.width, H = audioCanvas.height, mid = H / 2;
+        audioCtx.fillStyle = '#0d0d1a';
+        audioCtx.fillRect(0, 0, W, H);
+        audioCtx.strokeStyle = '#1a1a3e'; audioCtx.lineWidth = 1;
+        for (let i = 1; i < 4; i++) { audioCtx.beginPath(); audioCtx.moveTo(0, (H / 4) * i); audioCtx.lineTo(W, (H / 4) * i); audioCtx.stroke(); }
+        audioCtx.strokeStyle = '#00ff88'; audioCtx.lineWidth = 2;
         audioCtx.beginPath();
-
-        const step = width / waveformData.length;
-        for (let i = 0; i < waveformData.length; i++) {
-            const x = i * step;
-            const amplitude = waveformData[i] * (height / 2) * 0.8; // Scale amplitude
-            const y = centerY + amplitude;
-
-            if (i === 0) {
-                audioCtx.moveTo(x, y);
-            } else {
-                audioCtx.lineTo(x, y);
-            }
-        }
-        audioCtx.stroke();
-
-        // Draw center line
-        audioCtx.strokeStyle = '#2a2a4e';
-        audioCtx.lineWidth = 1;
-        audioCtx.beginPath();
-        audioCtx.moveTo(0, centerY);
-        audioCtx.lineTo(width, centerY);
-        audioCtx.stroke();
-    }
-
-    function updateAudioLevel(soundDb) {
-        // Update waveform data with simulated wave based on sound level
-        waveformData.shift();
-        const normalizedDb = Math.min(Math.max(soundDb || 0, 0), 100) / 100;
-        const waveValue = Math.sin(Date.now() / 100) * normalizedDb;
-        waveformData.push(waveValue);
-
-        // Update level bars
-        const levelBars = document.querySelectorAll('.level-bar');
-        const activeBarCount = Math.floor(normalizedDb * levelBars.length);
-        
-        levelBars.forEach((bar, index) => {
-            if (index < activeBarCount) {
-                bar.classList.add('active');
-                bar.style.height = `${10 + (index * 9)}%`;
-            } else {
-                bar.classList.remove('active');
-                bar.style.height = '5%';
-            }
+        const step = W / waveformData.length;
+        waveformData.forEach((v, i) => {
+            const x = i * step, y = mid + v * mid * 0.85;
+            i === 0 ? audioCtx.moveTo(x, y) : audioCtx.lineTo(x, y);
         });
+        audioCtx.stroke();
+        audioCtx.strokeStyle = '#2a2a5e'; audioCtx.lineWidth = 1;
+        audioCtx.beginPath(); audioCtx.moveTo(0, mid); audioCtx.lineTo(W, mid); audioCtx.stroke();
+    }
 
-        // Update dB value
-        const dbValue = document.getElementById('audio-db-value');
-        if (dbValue && soundDb !== undefined) {
-            dbValue.textContent = `${soundDb.toFixed(1)} dB`;
-        }
-
+    // Receive real waveform packets from the audio service
+    socket.on('audio_waveform', data => {
+        if (!sensorStates.audio) return;
+        const samples = data.samples || [];
+        if (samples.length === 0) return;
+        // Scroll old data left, append new packet
+        waveformData.splice(0, samples.length);
+        waveformData.push(...samples);
         drawWaveform();
-    }
 
-    // Animate waveform continuously
-    function animateWaveform() {
-        drawWaveform();
-        animationFrameId = requestAnimationFrame(animateWaveform);
-    }
-
-    // Start animation if canvas exists
-    if (audioCanvas) {
-        animateWaveform();
-    }
-
-    // Update sound visualization when telemetry arrives
-    socket.on('telemetry_update', data => {
-        if (data.sound_db !== undefined) {
-            updateAudioLevel(data.sound_db);
-        }
+        // Level bars driven by RMS of the packet
+        const rms = Math.sqrt(samples.reduce((s, v) => s + v * v, 0) / samples.length);
+        const levelBars = document.querySelectorAll('.level-bar');
+        const activeBars = Math.floor(Math.min(rms * 3, 1) * levelBars.length);
+        levelBars.forEach((bar, i) => {
+            if (i < activeBars) { bar.classList.add('active'); bar.style.height = `${10 + i * 9}%`; }
+            else                { bar.classList.remove('active'); bar.style.height = '5%'; }
+        });
     });
 
-    // --- AUDIO RECORDING BUTTON ---
+    // When audio is toggled off, flatline immediately
+    function flatlineWaveform() {
+        waveformData = new Array(WAVEFORM_LEN).fill(0);
+        drawWaveform();
+        document.querySelectorAll('.level-bar').forEach(b => { b.classList.remove('active'); b.style.height = '5%'; });
+        const dbEl = document.getElementById('audio-db-value');
+        if (dbEl) dbEl.textContent = '-- dB';
+    }
+
+    // Draw initial flatline
+    if (audioCanvas) drawWaveform();
+
+    // --- RECORD BUTTON ---
     document.getElementById('record-audio-btn')?.addEventListener('click', () => {
-        console.log('Audio recording button clicked');
-        
-        const recordBtn = document.getElementById('record-audio-btn');
-        const progressDiv = document.getElementById('recording-progress');
-        const progressFill = document.getElementById('progress-fill');
-        const progressText = document.getElementById('progress-text');
-        const statusSpan = document.getElementById('audio-ml-status');
-        
-        // Disable button and show progress
-        recordBtn.disabled = true;
-        recordBtn.textContent = '🎙️ Recording...';
-        progressDiv.style.display = 'block';
-        statusSpan.textContent = 'Recording in progress...';
-        
-        // Trigger recording via Socket.IO
-        socket.emit('trigger_audio_recording', { duration: 60 });
-        
-        // Animate progress bar
+        const btn  = document.getElementById('record-audio-btn');
+        const prog = document.getElementById('recording-progress');
+        const fill = document.getElementById('progress-fill');
+        const text = document.getElementById('progress-text');
+        const stat = document.getElementById('audio-ml-status');
+        const DURATION = 30;
+
+        btn.disabled = true; btn.textContent = '🎙️ Recording...';
+        prog.style.display = 'block'; stat.textContent = 'Recording in progress...';
+        socket.emit('trigger_audio_recording', { duration: DURATION });
+
         let elapsed = 0;
-        const duration = 60; // seconds
-        const interval = setInterval(() => {
-            elapsed += 1;
-            const percentage = (elapsed / duration) * 100;
-            progressFill.style.width = `${percentage}%`;
-            progressText.textContent = `Recording: ${elapsed}s / ${duration}s`;
-            
-            if (elapsed >= duration) {
-                clearInterval(interval);
-                statusSpan.textContent = 'Processing...';
-                progressText.textContent = 'Processing audio...';
-            }
+        const iv = setInterval(() => {
+            elapsed++;
+            fill.style.width = `${(elapsed / DURATION) * 100}%`;
+            text.textContent = `Recording: ${elapsed}s / ${DURATION}s`;
+            if (elapsed >= DURATION) { clearInterval(iv); stat.textContent = 'Processing...'; text.textContent = 'Processing audio...'; }
         }, 1000);
-        
-        // Reset after 65 seconds (60s recording + 5s processing buffer)
+
         setTimeout(() => {
-            recordBtn.disabled = false;
-            recordBtn.textContent = '🎤 Record 1 Minute & Analyze';
-            progressDiv.style.display = 'none';
-            progressFill.style.width = '0%';
-        }, 65000);
+            btn.disabled = false;
+            btn.textContent = '🎤 Record 30 Seconds & Analyze';
+            prog.style.display = 'none'; fill.style.width = '0%';
+        }, (DURATION + 5) * 1000);
     });
 
-    // --- AUDIO CLASSIFICATION UPDATE ---
-    socket.on('audio_classification_update', data => {
-        console.log('Received audio classification:', data);
-        
-        const classificationSpan = document.getElementById('audio-classification');
-        const confidenceSpan = document.getElementById('audio-confidence');
-        const statusSpan = document.getElementById('audio-ml-status');
-        const lastAnalysisSpan = document.getElementById('audio-last-analysis');
-        
-        if (data.results) {
-            const { classification, confidence, status } = data.results;
-            
-            // Update classification with color coding
-            if (classification) {
-                classificationSpan.textContent = classification === 'queen_present' 
-                    ? 'Queen Present' 
-                    : 'Queen Absent';
-                classificationSpan.className = 'result-value ' + classification.replace('_', '-');
-            }
-            
-            // Update confidence
-            if (confidence !== undefined) {
-                confidenceSpan.textContent = `${(confidence * 100).toFixed(1)}%`;
-            }
-            
-            // Update status
-            if (status) {
-                statusSpan.textContent = status === 'complete' ? 'Analysis Complete' : status;
-            }
-            
-            // Update last analysis time
-            lastAnalysisSpan.textContent = 'Just now';
-        }
-    });
+    // --- SESSION KEEPALIVE ---
+    setInterval(() => fetch('/heartbeat', { method: 'POST' }).catch(() => {}), 60000);
+    window.addEventListener('beforeunload', () => navigator.sendBeacon('/session/end'));
 });
-

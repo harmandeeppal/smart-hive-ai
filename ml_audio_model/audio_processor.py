@@ -99,8 +99,9 @@ class AudioProcessor:
             logger.error(f"❌ Model file not found: {model_path}")
             logger.warning("Audio model will be disabled. System will continue without audio analysis.")
             self.enabled = False
-        except ImportError:
-            logger.error("❌ Required packages not installed. Install with: pip install librosa scikit-learn sounddevice")
+        except ImportError as e:
+            logger.error(f"❌ Import error while loading model: {e}")
+            logger.error("Install missing packages with: pip install librosa scikit-learn sounddevice")
             logger.warning("Audio model will be disabled. System will continue without audio analysis.")
             self.enabled = False
         except Exception as e:
@@ -176,51 +177,35 @@ class AudioProcessor:
     def extract_features(self, audio_data: np.ndarray) -> Optional[np.ndarray]:
         """
         Extract MFCC features from audio.
-        
-        Extracts:
-        - 13 MFCC coefficients
-        - Delta (first derivative)
-        - Delta-Delta (second derivative)
-        
+
+        Produces 312 features (26 coefficients × 12 statistics):
+        mean, std, min, max for each of MFCC, delta, and delta-delta.
+
         Args:
             audio_data (np.ndarray): Audio time series
-        
+
         Returns:
-            np.ndarray: Feature matrix (1, n_features) or None on error
+            np.ndarray: Feature matrix (1, 312) or None on error
         """
         try:
             import librosa
-            
-            # Extract MFCC
-            mfcc = librosa.feature.mfcc(
-                y=audio_data,
-                sr=self.sample_rate,
-                n_mfcc=13
-            )
-            
-            # Compute statistics: mean and std for each coefficient
-            mfcc_mean = np.mean(mfcc, axis=1)
-            mfcc_std = np.std(mfcc, axis=1)
-            
-            # Extract delta and delta-delta
+
+            mfcc = librosa.feature.mfcc(y=audio_data, sr=self.sample_rate, n_mfcc=26)
             delta = librosa.feature.delta(mfcc)
-            delta_mean = np.mean(delta, axis=1)
-            delta_std = np.std(delta, axis=1)
-            
-            delta_delta = librosa.feature.delta(mfcc, order=2)
-            delta_delta_mean = np.mean(delta_delta, axis=1)
-            delta_delta_std = np.std(delta_delta, axis=1)
-            
-            # Combine all features
+            delta2 = librosa.feature.delta(mfcc, order=2)
+
             features = np.concatenate([
-                mfcc_mean, mfcc_std,
-                delta_mean, delta_std,
-                delta_delta_mean, delta_delta_std
+                np.mean(mfcc, axis=1), np.std(mfcc, axis=1),
+                np.min(mfcc, axis=1),  np.max(mfcc, axis=1),
+                np.mean(delta, axis=1), np.std(delta, axis=1),
+                np.min(delta, axis=1),  np.max(delta, axis=1),
+                np.mean(delta2, axis=1), np.std(delta2, axis=1),
+                np.min(delta2, axis=1),  np.max(delta2, axis=1),
             ])
-            
+
             logger.debug(f"Extracted {len(features)} features")
-            return features.reshape(1, -1)  # Return as 2D array for model
-        
+            return features.reshape(1, -1)
+
         except ImportError:
             logger.error("❌ librosa package not installed. Install with: pip install librosa")
             return None
@@ -241,24 +226,29 @@ class AudioProcessor:
                 - confidence: Confidence score (0.0-1.0)
         """
         try:
-            # Get prediction
-            prediction = self.model.predict(features)[0]
-            
-            # Try to get probability if model supports it
+            # Model is a dict pipeline: scaler → feature_selector → classifier → label_encoder
+            clf = self.model['model']
+            scaler = self.model['scaler']
+            selector = self.model['feature_selector']
+            encoder = self.model['label_encoder']
+
+            scaled = scaler.transform(features)
+            selected = selector.transform(scaled)
+            prediction = clf.predict(selected)[0]
+
             try:
-                probabilities = self.model.predict_proba(features)[0]
+                probabilities = clf.predict_proba(selected)[0]
                 confidence = max(probabilities)
             except AttributeError:
-                # Model doesn't support predict_proba
-                confidence = 0.5  # Default confidence
-            
-            classification = "queen_present" if prediction == 1 else "queen_absent"
-            
+                confidence = 0.5
+
+            label = encoder.inverse_transform([prediction])[0]
+
             return {
-                "classification": classification,
+                "classification": str(label),
                 "confidence": round(float(confidence), 3)
             }
-        
+
         except Exception as e:
             logger.error(f"❌ Classification failed: {e}")
             return {"classification": "error", "confidence": 0.0}
