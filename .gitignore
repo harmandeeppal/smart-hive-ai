@@ -49,9 +49,10 @@ certs/
 *.sln
 *.sw?
 
-# --- ML model binaries (large files — hosted on Hugging Face Hub) ---
+# --- ML model binaries (hosted on Hugging Face Hub — run scripts/download_models.py) ---
 *.tflite
-# *.pt and *.pkl will be added here after uploading to Hugging Face (Phase 4)
+models/*.pt
+models/*.pkl
 
 # --- Generated demo assets (run demo/generate_sample_*.py to recreate) ---
 demo/sample_audio/

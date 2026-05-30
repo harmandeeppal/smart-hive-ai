@@ -1,13 +1,12 @@
 # Dockerfile.audio
 # Audio ML classification service
-# DEMO_MODE=true on Railway — no microphone hardware required
-# sounddevice/portaudio are NOT installed (imported lazily in hardware path only)
+# DEMO_MODE=true on Railway — no microphone hardware required.
+# Models downloaded from Hugging Face Hub at container startup.
 
 FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Apply OS security patches + install libsndfile for soundfile/librosa
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
@@ -22,6 +21,7 @@ RUN pip install --no-cache-dir -r requirements-audio.txt
 COPY ml_audio_service.py .
 COPY ml_audio_model/ ./ml_audio_model/
 COPY config.py .
-COPY models/ ./models/
+COPY scripts/download_models.py ./scripts/download_models.py
 
-CMD ["python", "ml_audio_service.py"]
+# Download models from HF Hub then start the service
+CMD ["sh", "-c", "python scripts/download_models.py && python ml_audio_service.py"]

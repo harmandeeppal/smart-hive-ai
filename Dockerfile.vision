@@ -1,6 +1,7 @@
 # Dockerfile.vision
 # YOLOv8 queen bee detection — CPU-only inference
-# Runs in DEMO_MODE on Railway (processes simulated camera frames via MQTT)
+# Models downloaded from Hugging Face Hub at container startup.
+# Set HF_TOKEN env var on Railway for authenticated downloads (optional for public repos).
 
 FROM python:3.11-slim-bookworm
 
@@ -19,7 +20,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only PyTorch BEFORE ultralytics so it doesn't pull the CUDA build
+# Install CPU-only PyTorch BEFORE ultralytics to prevent the CUDA build being pulled
 RUN pip install --no-cache-dir \
     torch==2.5.1+cpu \
     torchvision==0.20.1+cpu \
@@ -31,6 +32,7 @@ RUN pip install --no-cache-dir -r requirements-vision.txt
 COPY ml_vision_service.py .
 COPY ml_vision_model/ ./ml_vision_model/
 COPY config.py .
-COPY models/ ./models/
+COPY scripts/download_models.py ./scripts/download_models.py
 
-CMD ["python", "ml_vision_service.py"]
+# Download models from HF Hub then start the service
+CMD ["sh", "-c", "python scripts/download_models.py && python ml_vision_service.py"]
