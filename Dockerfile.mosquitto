@@ -1,0 +1,6 @@
+FROM eclipse-mosquitto:2
+
+# Embed config so Railway doesn't need a volume mount
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+
+EXPOSE 1883
