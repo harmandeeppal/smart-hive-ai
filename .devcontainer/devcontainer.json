@@ -1,0 +1,48 @@
+{
+  "name": "Smart Hive AI Demo",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+
+  "features": {
+    "ghcr.io/devcontainers/features/conda:1": {
+      "version": "latest"
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "forwardPorts": [5000, 1883],
+  "portsAttributes": {
+    "5000": {
+      "label": "Smart Hive AI Dashboard",
+      "onAutoForward": "openBrowser",
+      "protocol": "http"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/conda/envs/smart-hive-demo/bin/python",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    },
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  },
+
+  "secrets": {
+    "HF_TOKEN": {
+      "description": "Hugging Face token — needed to download model weights from huggingface.co/harmandeeppal/smart-hive-ai",
+      "documentationUrl": "https://huggingface.co/settings/tokens"
+    }
+  },
+
+  "remoteEnv": {
+    "HF_TOKEN": "${localEnv:HF_TOKEN}"
+  }
+}
