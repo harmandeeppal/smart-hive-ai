@@ -1,0 +1,15 @@
+# railway.toml — Smart Hive AI
+#
+# This file configures the DASHBOARD service (the public-facing entry point).
+# The other four services (mosquitto, simulator, ml-vision, ml-audio) are added
+# separately in the Railway dashboard pointing to this same repository.
+# See docs/deployment/railway.md for the full multi-service setup guide.
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.dashboard"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "always"

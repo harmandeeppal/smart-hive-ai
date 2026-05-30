@@ -1,9 +1,11 @@
 # Vision-Only Requirements
-# Lightweight YOLO v8 inference
+# CPU-only YOLO v8 queen bee detection
+# torch is installed separately in Dockerfile before this file
+# to ensure the CPU wheel is used (not CUDA)
 
-numpy==1.24.3
-opencv-python-headless==4.8.0.76
-ultralytics==8.0.0
-paho-mqtt==1.6.1
-python-dotenv==1.0.0
-pytz==2023.3
+numpy==2.0.2
+opencv-python-headless==4.10.0.84
+ultralytics==8.3.0
+paho-mqtt==2.1.0
+python-dotenv==1.0.1
+pytz==2024.2
